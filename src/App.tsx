@@ -73,6 +73,10 @@ const Ic = {
   plus:     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>,
   students: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>,
   chevron:  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>,
+  wallet:    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 7.28V5c0-1.1-.9-2-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-2.28c.59-.35 1-.98 1-1.72V9c0-.74-.41-1.37-1-1.72zM20 9v6h-7V9h7zM5 19V5h14v2h-6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h6v2H5z"/><circle cx="16" cy="12" r="1.5"/></svg>,
+  family:    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 7h-.76c-.8 0-1.54.5-1.85 1.26L14.5 13H13v9h7zM12.5 11.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5S11 9.17 11 10s.67 1.5 1.5 1.5zM5.5 6c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2zm2 16v-7H9V9.5C9 8.12 7.88 7 6.5 7h-2C3.12 7 2 8.12 2 9.5V15h1.5v7h4z"/></svg>,
+  more:      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>,
+  lock:      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>,
   google: (
     <svg viewBox="0 0 24 24" width="20" height="20">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -357,8 +361,31 @@ type Screen =
   | "t-finance" | "t-tx" | "t-tx-filter" | "t-analytics" | "withdraw-confirm"
   | "s-pay" | "s-pkgs" | "s-pkg" | "pkg-pay" | "pkg-active" | "pkg-use" | "pkg-info" | "pkg-price" | "pkg-sales"
   | "sub-usage" | "teac-ai"
+  | "p-setup" | "p-add-child" | "p-link" | "p-link-sent" | "p-create-child" | "p-child-ok"
+  | "p-home" | "p-kids" | "p-child" | "p-hw" | "p-report" | "p-report-full" | "p-insight" | "p-perms"
+  | "p-pay" | "p-wallet" | "p-wallet-add" | "p-transfer" | "p-spend" | "p-tx" | "p-tx-detail"
+  | "p-subs" | "p-sub-manage" | "p-pkgs" | "p-bookings" | "p-teachers" | "p-chat"
+  | "p-approve" | "p-approve-pkg" | "p-approve-book" | "p-approve-ai" | "p-approve-ok"
+  | "p-notifs" | "p-more" | "devices" | "help-center" | "policies" | "account-settings" | "s-approve-sent"
 
 type Go = (s: Screen) => void
+type Role = "s" | "t" | "p"
+
+type Kid = {
+  id: string
+  name: string
+  grade: string
+  pct: number
+  note: string
+  link: "connected" | "pending" | "rejected" | "removed"
+  plan: string
+  ai: string
+}
+
+const DEMO_KIDS: Kid[] = [
+  { id: "ahmed", name: "أحمد", grade: "أولى ثانوي", pct: 78, note: "مستواه مستقر هذا الأسبوع", link: "connected", plan: "Student Plus", ai: "AI Plus" },
+  { id: "sara", name: "سارة", grade: "ثانية إعدادي", pct: 64, note: "محتاجة متابعة في العلوم", link: "connected", plan: "Free Plan", ai: "AI Free" },
+]
 
 type DueOrder = {
   id: string
@@ -974,66 +1001,45 @@ function Login({ go, onForgot }: { go: () => void; onForgot: () => void }) {
 }
 
 // ─── SCREEN 4 · Role Select ───────────────────────────────────────────────────
-function RoleSelect({ goStudent, goTeacher }: { goStudent: () => void; goTeacher: () => void }) {
-  const [sel, setSel] = useState<"s"|"t"|null>(null)
+function RoleSelect({ goStudent, goTeacher, goParent }: { goStudent: () => void; goTeacher: () => void; goParent: () => void }) {
+  const [sel, setSel] = useState<Role | null>(null)
   const roles = [
-    {
-      id: "s" as const,
-      emoji: "🎓",
-      title: "طالب",
-      desc: "ذاكر، تابع تقدمك، انضم لمدرس أو استخدم المعلم الذكي.",
-      tags: ["دروس تفاعلية","مساعد AI ✨","تتبع التقدم"],
-      color: T.brand,
-      grad: T.gradBrand,
-      onClick: goStudent,
-    },
-    {
-      id: "t" as const,
-      emoji: "👨‍🏫",
-      title: "مدرس",
-      desc: "أدر طلبتك، فصولك، واجباتك واستخدم مساعد المدرس الذكي.",
-      tags: ["لوحة تحكم","تحليل الأداء","مساعد AI ✨"],
-      color: T.emerald,
-      grad: T.gradTeacher,
-      onClick: goTeacher,
-    },
+    { id: "s" as const, icon: Ic.book, title: "طالب", desc: "اتعلم، تابع تقدمك، احجز مع مدرس واستخدم المعلم الذكي.", color: T.brand, grad: T.gradBrand },
+    { id: "t" as const, icon: Ic.classes, title: "مدرس", desc: "أدر طلبتك، دروسك، حجوزاتك وأرباحك باستخدام أدوات ذكية.", color: T.emerald, grad: T.gradTeacher },
+    { id: "p" as const, icon: Ic.family, title: "ولي أمر", desc: "تابع أولادك، مستواهم الدراسي، حجوزاتهم ومدفوعاتهم من مكان واحد.", color: T.teal, grad: "linear-gradient(135deg, #0891B2 0%, #4558F4 100%)" },
   ]
+  const goSel = () => { if (sel === "t") goTeacher(); else if (sel === "p") goParent(); else if (sel === "s") goStudent() }
   return (
     <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
       <StatusBar/>
-      <div style={{ paddingTop: 56, padding: "60px 20px 0" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 28 }}>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "60px 20px 12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 22 }}>
           <Wordmark size={30}/>
-          <h1 style={{ margin: "12px 0 4px", fontSize: 21, fontWeight: 900, color: T.text, fontFamily: AR, textAlign: "center" }}>
-            أنت هتستخدم Teac Teacher كـ إيه؟
+          <h1 style={{ margin: "12px 0 4px", fontSize: 20, fontWeight: 900, color: T.text, fontFamily: AR, textAlign: "center", lineHeight: 1.45 }}>
+            هتستخدم Teac Teacher كـ إيه؟
           </h1>
-          <p style={{ margin: 0, fontSize: 14, color: T.muted, fontFamily: "'Cairo', sans-serif" }}>اختر دورك لنخصص تجربتك</p>
+          <p style={{ margin: 0, fontSize: 13, color: T.muted, fontFamily: AR }}>اختر دورك لنخصص تجربتك</p>
         </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {roles.map((role) => {
             const on = sel === role.id
             return (
               <div key={role.id} onClick={() => setSel(role.id)} style={{
                 borderRadius: 22, border: `2px solid ${on ? role.color : T.border}`,
                 background: on ? role.color + "0a" : "white",
-                padding: "20px 18px", cursor: "pointer",
+                padding: "18px 16px", cursor: "pointer", minHeight: 108,
                 boxShadow: on ? `0 4px 24px ${role.color}20` : S.card,
-                transition: "all .2s",
               }}>
-                <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                  <div style={{ width: 56, height: 56, borderRadius: 16, background: role.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
-                    {role.emoji}
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div style={{ width: 56, height: 56, borderRadius: 16, background: role.grad, display: "flex", alignItems: "center", justifyContent: "center", color: "white", flexShrink: 0 }}>
+                    <span style={{ width: 26, height: 26, display: "flex" }}>{role.icon}</span>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{role.title}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: AR }}>{role.title}</span>
                       {on && <span style={{ color: role.color, width: 18, height: 18, display: "flex" }}>{Ic.check}</span>}
                     </div>
-                    <p style={{ margin: "0 0 12px", fontSize: 13, color: T.muted, lineHeight: 1.7, fontFamily: "'Cairo', sans-serif" }}>{role.desc}</p>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {role.tags.map((tag) => <Chip key={tag} color={role.color}>{tag}</Chip>)}
-                    </div>
+                    <p style={{ margin: 0, fontSize: 13, color: T.muted, lineHeight: 1.7, fontFamily: AR }}>{role.desc}</p>
                   </div>
                 </div>
               </div>
@@ -1041,13 +1047,8 @@ function RoleSelect({ goStudent, goTeacher }: { goStudent: () => void; goTeacher
           })}
         </div>
       </div>
-
-      <div style={{ flex: 1 }}/>
-      <div style={{ padding: "20px 20px 28px" }}>
-        <Btn
-          onClick={() => { if (!sel) return; sel === "t" ? goTeacher() : goStudent() }}
-          style={sel === "t" ? { background: T.gradTeacher, boxShadow: S.btnEm } : undefined}
-        >
+      <div style={{ padding: "12px 20px 28px", flexShrink: 0 }}>
+        <Btn onClick={goSel} style={sel === "t" ? { background: T.gradTeacher, boxShadow: S.btnEm } : sel === "p" ? { background: "linear-gradient(135deg,#0891B2,#4558F4)", boxShadow: "0 4px 20px rgba(8,145,178,.35)" } : undefined}>
           {sel ? "متابعة" : "اختر دورك للمتابعة"}
         </Btn>
       </div>
@@ -1062,7 +1063,7 @@ function StudentHome({ go, hasTeacher }: { go: Go; hasTeacher: boolean }) {
     { key: "learn", label: "التعلم", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
     { key: "ai", label: "المعلم الذكي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.robot}</span> },
     { key: "tasks", label: "المهام", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.task}</span> },
-    { key: "profile", label: "حسابي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.user}</span> },
+    { key: "profile", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
   ]
   const onNav = (k: string) => {
     if (k === "home") go("s-home")
@@ -1230,7 +1231,7 @@ function TeacherHome({ go, empty, verified }: { go: Go; empty?: boolean; verifie
     { key: "classes",  label: "الفصول",   icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.classes}</span> },
     { key: "create",   label: "إنشاء",    icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.plus}</span> },
     { key: "students", label: "الطلاب",   icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.students}</span> },
-    { key: "profile",  label: "حسابي",    icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.user}</span> },
+    { key: "profile",  label: "المزيد",    icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
   ]
   const onNav = (k: string) => {
     if (k === "home") go("t-home")
@@ -2071,80 +2072,284 @@ function Homework({ go }: { go: Go }) {
   )
 }
 
-function Account({ go, role, verified }: { go: Go; role: "s"|"t"; verified?: boolean }) {
-  const [pushOn, setPushOn] = useState(true)
-  const sItems: { l: string; s: Screen }[] = [
-    { l: "تعديل بيانات الحساب", s: "edit-profile" },
-    { l: "المحادثات", s: "chats" },
-    { l: "المدفوعات", s: "s-pay" },
-    { l: "محفظتي", s: "s-wallet" },
-    { l: "باقاتي", s: "s-pkgs" },
-    { l: "المعاملات المالية", s: "tx" },
-    { l: "حجوزاتي", s: "bookings" },
-    { l: "اشتراكي", s: "s-plans" },
-    { l: "Teac AI", s: "teac-ai" },
-    { l: "ادعُ أصحابك", s: "referral" },
-    { l: "الفواتير والإيصالات", s: "invoices" },
-    { l: "وسائل الدفع", s: "pay-methods" },
-    { l: "التقويم", s: "calendar" },
-    { l: "ولي الأمر", s: "guardian" },
-    { l: "الأمان", s: "security" },
-    { l: "الخصوصية", s: "privacy" },
-    { l: "المساعدة والدعم", s: "support" },
+function parentNavItems() {
+  return [
+    { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
+    { key: "kids", label: "أولادي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.family}</span> },
+    { key: "pay", label: "المدفوعات", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.wallet}</span> },
+    { key: "notifs", label: "التنبيهات", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.bell}</span> },
+    { key: "more", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
   ]
-  const tItems: { l: string; s: Screen }[] = [
-    { l: "تعديل بيانات الحساب", s: "edit-profile" },
-    { l: "المحادثات", s: "chats" },
-    { l: "المالية", s: "t-finance" },
-    { l: "أرباحي", s: "t-finance" },
-    { l: "المستحقات المالية", s: "ents" },
-    { l: "باقاتي", s: "pkg-sales" },
-    { l: "البثوث", s: "lives" },
-    { l: "حصصي", s: "bookings" },
-    { l: "الأسعار والخدمات", s: "pricing" },
-    { l: "مواعيدي", s: "availability" },
-    { l: "اشتراكي", s: "t-plans" },
-    { l: "Teac AI", s: "teac-ai" },
-    { l: "توثيق الهوية", s: verified ? "t-verified" : "t-pending" },
-    { l: "التقارير المالية", s: "reports" },
-    { l: "الأمان", s: "security" },
-    { l: "الخصوصية", s: "privacy" },
-    { l: "المساعدة والدعم", s: "support" },
-  ]
-  const items = role === "s" ? sItems : tItems
+}
+function parentOnNav(go: Go, k: string) {
+  if (k === "home") go("p-home")
+  if (k === "kids") go("p-kids")
+  if (k === "pay") go("p-pay")
+  if (k === "notifs") go("p-notifs")
+  if (k === "more") go("p-more")
+}
+function ParentShell({ go, active, children }: { go: Go; active: string; children: ReactNode }) {
   return (
-    <Page title="حسابي" onBack={() => go(role==="s"?"s-home":"t-home")}>
-      <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "center" }}><Avatar name={role==="s"?"أحمد":"محمد حسن"} size={72}/></div>
-        <div style={{ fontWeight: 800, fontFamily: AR, fontSize: 20, marginTop: 8, display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>
-          {role==="s"?"أحمد علي":"أ/ محمد حسن"} {role==="t" && verified && <VerifiedBadge small/>}
+    <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
+      {children}
+      <NavBar items={parentNavItems()} active={active} onSelect={(k) => parentOnNav(go, k)}/>
+    </div>
+  )
+}
+function ChildSwitcher({ kids, id, onPick, onAdd }: { kids: Kid[]; id: string; onPick: (id: string) => void; onAdd: () => void }) {
+  const [open, setOpen] = useState(false)
+  const cur = kids.find((k) => k.id === id) ?? kids[0]
+  if (!cur) return null
+  return (
+    <div style={{ position: "relative", marginBottom: 12 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+        borderRadius: 16, border: `1.5px solid ${T.border}`, background: "rgba(255,255,255,0.18)", cursor: "pointer",
+      }}>
+        <Avatar name={cur.name} size={36}/>
+        <div style={{ flex: 1, textAlign: "right" }}>
+          <div style={{ fontFamily: AR, fontWeight: 800, color: "white", fontSize: 15 }}>{cur.name}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{cur.grade}</div>
         </div>
-        <div style={{ fontFamily: AR, color: T.muted }}>{role==="s"?"أولى ثانوي · خطة مجانية":"رياضيات · ثانوي · 8 سنوات"}</div>
-        <button onClick={() => go("edit-profile")} style={{ marginTop: 10, background: T.brandLight, color: T.brand, border: "none", borderRadius: 12, padding: "8px 14px", fontFamily: AR, fontWeight: 800, cursor: "pointer" }}>تعديل البيانات</button>
+        <span style={{ color: "white", transform: open ? "rotate(90deg)" : "rotate(-90deg)", width: 18, height: 18, display: "flex" }}>{Ic.chevron}</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: 58, left: 0, right: 0, zIndex: 8, background: T.card, borderRadius: 16, boxShadow: S.float, padding: 8 }}>
+          {kids.map((k) => (
+            <button key={k.id} onClick={() => { onPick(k.id); setOpen(false) }} style={{
+              width: "100%", display: "flex", gap: 10, padding: 10, border: "none", background: k.id === id ? T.brandLight : "transparent",
+              borderRadius: 12, cursor: "pointer", textAlign: "right",
+            }}>
+              <Avatar name={k.name} size={32}/>
+              <div>
+                <div style={{ fontFamily: AR, fontWeight: 800, color: T.text }}>{k.name}</div>
+                <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{k.grade}</div>
+              </div>
+            </button>
+          ))}
+          <button onClick={() => { setOpen(false); onAdd() }} style={{
+            width: "100%", padding: 12, border: "none", background: "transparent", color: T.brand, fontFamily: AR, fontWeight: 800, cursor: "pointer",
+          }}>+ إضافة طالب</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MoreRow({ icon, title, sub, value, badge, onClick, danger }: {
+  icon: ReactNode; title: string; sub?: string; value?: string; badge?: string; onClick?: () => void; danger?: boolean
+}) {
+  return (
+    <button onClick={onClick} style={{
+      width: "100%", minHeight: 52, display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+      border: "none", background: "transparent", cursor: "pointer", textAlign: "right",
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+        background: danger ? T.roseLt : T.brandLight, color: danger ? T.rose : T.brand,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <span style={{ width: 20, height: 20, display: "flex" }}>{icon}</span>
       </div>
-      <Card style={{ marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontFamily: AR, fontWeight: 800 }}>الإشعارات</div>
-          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{pushOn ? "مفتوحة — هتوصلك تنبيهات الحصص والدفع" : "مقفولة — مش هتوصلك إشعارات"}</div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Switch on={pushOn} onChange={() => setPushOn(!pushOn)}/>
-          <button onClick={() => go("notifs")} style={{ background: "none", border: "none", color: T.brand, fontFamily: AR, fontWeight: 700, cursor: "pointer" }}>عرض</button>
-        </div>
-      </Card>
-      {items.map((x) => (
-        <Card key={x.l} style={{ marginBottom: 8 }} onClick={() => go(x.s)}>
-          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x.l}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: AR, fontWeight: 800, fontSize: 15, color: danger ? T.rose : T.text }}>{title}</div>
+        {sub && <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 2 }}>{sub}</div>}
+      </div>
+      {badge && <Chip color={T.brand}>{badge}</Chip>}
+      {value && <span style={{ fontFamily: LAT, fontSize: 13, fontWeight: 800, color: T.sub }}>{value}</span>}
+      <span style={{ width: 18, height: 18, display: "flex", color: T.muted, transform: "scaleX(-1)" }}>{Ic.chevron}</span>
+    </button>
+  )
+}
+
+function MoreGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontFamily: AR, fontSize: 13, fontWeight: 800, color: T.muted, margin: "0 4px 10px" }}>{title}</div>
+      <div style={{ background: T.card, borderRadius: 18, boxShadow: S.card, overflow: "hidden", border: `1px solid ${T.border}` }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolean }) {
+  const studentNav = [
+    { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
+    { key: "learn", label: "التعلم", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
+    { key: "ai", label: "المعلم الذكي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.robot}</span> },
+    { key: "tasks", label: "المهام", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.task}</span> },
+    { key: "profile", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
+  ]
+  const teacherNav = [
+    { key: "home",     label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
+    { key: "classes",  label: "الفصول",   icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.classes}</span> },
+    { key: "create",   label: "إنشاء",    icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.plus}</span> },
+    { key: "students", label: "الطلاب",   icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.students}</span> },
+    { key: "profile",  label: "المزيد",    icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
+  ]
+  const onNav = (k: string) => {
+    if (role === "s") {
+      if (k === "home") go("s-home")
+      if (k === "learn") go("learn")
+      if (k === "ai") go("ai-chat")
+      if (k === "tasks") go("tasks")
+      if (k === "profile") go("s-account")
+    } else if (role === "t") {
+      if (k === "home") go("t-home")
+      if (k === "classes") go("class")
+      if (k === "create") go("t-create")
+      if (k === "students") go("class-students")
+      if (k === "profile") go("t-account")
+    } else parentOnNav(go, k)
+  }
+  const name = role === "t" ? "أ/ محمد أحمد" : "أحمد محمد"
+  const sub = role === "t" ? "Teacher Pro · رياضيات" : role === "p" ? "ولي أمر" : "أولى ثانوي · Student Plus"
+  const nav = role === "t" ? teacherNav : role === "p" ? parentNavItems() : studentNav
+  const quick = role === "t" ? [
+    { l: "الأرباح", s: "3,850", go: "t-finance" as Screen },
+    { l: "اشتراكي", s: "Pro", go: "t-plans" as Screen },
+    { l: "الباقات", s: "3", go: "pkg-sales" as Screen },
+    { l: "الحجوزات", s: "5", go: "bookings" as Screen },
+  ] : role === "p" ? [
+    { l: "المحفظة", s: "2,400", go: "p-wallet" as Screen },
+    { l: "الاشتراكات", s: "2 نشطة", go: "p-subs" as Screen },
+    { l: "أولادي", s: "2", go: "p-kids" as Screen },
+    { l: "الدعم", s: "—", go: "support" as Screen },
+  ] : [
+    { l: "المحفظة", s: "180", go: "s-wallet" as Screen },
+    { l: "اشتراكي", s: "Plus", go: "s-plans" as Screen },
+    { l: "باقاتي", s: "1", go: "s-pkgs" as Screen },
+    { l: "حجوزاتي", s: "2", go: "bookings" as Screen },
+  ]
+  return (
+    <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
+      <StatusBar/>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "56px 20px 28px", minHeight: 0 }}>
+        <Card style={{ marginBottom: 16, padding: 16 }} onClick={() => go("edit-profile")}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <Avatar name={name} size={56} bg={role === "t" ? T.emerald : T.brand}/>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 18, display: "flex", gap: 6, alignItems: "center" }}>
+                {name} {role === "t" && verified && <VerifiedBadge small/>}
+              </div>
+              <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 2 }}>{sub}</div>
+              <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>01012345678</div>
+            </div>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); go("edit-profile") }} style={{
+            marginTop: 12, width: "100%", minHeight: 40, borderRadius: 12, border: "none",
+            background: T.brandLight, color: T.brand, fontFamily: AR, fontWeight: 800, cursor: "pointer",
+          }}>عرض الملف الشخصي</button>
         </Card>
-      ))}
-      <div style={{ height: 8 }}/>
-      <Btn variant="secondary" onClick={() => go("logout")} style={{ borderColor: T.border, color: T.text }}>تسجيل الخروج</Btn>
-      <div style={{ height: 8 }}/>
-      <button onClick={() => go("delete-acc")} style={{
-        width: "100%", minHeight: 52, borderRadius: 16, border: `1.5px solid ${T.rose}33`,
-        background: T.roseLt, color: T.rose, fontFamily: AR, fontWeight: 800, fontSize: 15, cursor: "pointer",
-      }}>حذف الحساب</button>
-    </Page>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 28 }}>
+          {quick.map((q) => (
+            <button key={q.l} onClick={() => go(q.go)} style={{
+              textAlign: "right", border: `1px solid ${T.border}`, background: T.card, borderRadius: 16,
+              padding: "12px 12px", cursor: "pointer", boxShadow: S.card, minHeight: 72,
+            }}>
+              <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{q.l}</div>
+              <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 16, color: T.text, marginTop: 4 }}>{q.s}</div>
+            </button>
+          ))}
+        </div>
+        {role === "p" && <>
+          <MoreGroup title="الأسرة والتعليم">
+            <MoreRow icon={Ic.family} title="أولادي" sub="إدارة الحسابات المرتبطة" onClick={() => go("p-kids")}/>
+            <MoreRow icon={Ic.book} title="التقارير الدراسية" sub="التقدم والتقرير الأسبوعي" onClick={() => go("p-report")}/>
+            <MoreRow icon={Ic.students} title="المدرسون" sub="المدرسون المرتبطون بأولادك" onClick={() => go("p-teachers")}/>
+            <MoreRow icon={Ic.task} title="الحجوزات" sub="القادمة والسابقة" onClick={() => go("p-bookings")}/>
+            <MoreRow icon={Ic.classes} title="الباقات" sub="باقات أولادي النشطة" onClick={() => go("p-pkgs")}/>
+          </MoreGroup>
+          <MoreGroup title="المالية والاشتراكات">
+            <MoreRow icon={Ic.wallet} title="المحفظة العائلية" sub="إدارة الرصيد والمدفوعات" value="2,400 ج.م" onClick={() => go("p-wallet")}/>
+            <MoreRow icon={Ic.task} title="المعاملات" sub="سجل المدفوعات والاسترداد" onClick={() => go("p-tx")}/>
+            <MoreRow icon={Ic.sparkle} title="الاشتراكات" sub="خطط أولادك وAI" badge="2 نشطة" onClick={() => go("p-subs")}/>
+            <MoreRow icon={Ic.wallet} title="طرق الدفع" onClick={() => go("pay-methods")}/>
+            <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
+            <MoreRow icon={Ic.lock} title="حدود الإنفاق" sub="مصروف كل طالب" onClick={() => go("p-spend")}/>
+          </MoreGroup>
+          <MoreGroup title="الحساب والأمان">
+            <MoreRow icon={Ic.user} title="البيانات الشخصية" onClick={() => go("edit-profile")}/>
+            <MoreRow icon={Ic.lock} title="الأمان" onClick={() => go("security")}/>
+            <MoreRow icon={Ic.lock} title="الخصوصية" onClick={() => go("privacy")}/>
+            <MoreRow icon={Ic.classes} title="الأجهزة المسجل عليها الحساب" onClick={() => go("devices")}/>
+            <MoreRow icon={Ic.bell} title="الإشعارات" onClick={() => go("p-notifs")}/>
+          </MoreGroup>
+          <MoreGroup title="المساعدة">
+            <MoreRow icon={Ic.sparkle} title="مركز المساعدة" onClick={() => go("help-center")}/>
+            <MoreRow icon={Ic.send} title="تواصل مع الدعم" onClick={() => go("support")}/>
+            <MoreRow icon={Ic.task} title="الإبلاغ عن مشكلة" onClick={() => go("report-user")}/>
+            <MoreRow icon={Ic.book} title="الشروط والسياسات" onClick={() => go("policies")}/>
+          </MoreGroup>
+        </>}
+        {role === "t" && <>
+          <MoreGroup title="إدارة عملي">
+            <MoreRow icon={Ic.wallet} title="المالية" sub="الأرصدة والمستحقات" onClick={() => go("t-finance")}/>
+            <MoreRow icon={Ic.wallet} title="أرباحي" onClick={() => go("t-finance")}/>
+            <MoreRow icon={Ic.task} title="المعاملات" onClick={() => go("t-tx")}/>
+            <MoreRow icon={Ic.classes} title="الباقات" onClick={() => go("pkg-sales")}/>
+            <MoreRow icon={Ic.book} title="الأسعار والخدمات" onClick={() => go("pricing")}/>
+            <MoreRow icon={Ic.task} title="المواعيد" onClick={() => go("availability")}/>
+            <MoreRow icon={Ic.sparkle} title="البثوث" onClick={() => go("lives")}/>
+            <MoreRow icon={Ic.bell} title="الحجوزات" onClick={() => go("bookings")}/>
+          </MoreGroup>
+          <MoreGroup title="Teac Teacher">
+            <MoreRow icon={Ic.sparkle} title="اشتراكي" badge="Pro" onClick={() => go("t-plans")}/>
+            <MoreRow icon={Ic.robot} title="استخدام AI" onClick={() => go("teac-ai")}/>
+            <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
+          </MoreGroup>
+          <MoreGroup title="الحساب">
+            <MoreRow icon={Ic.user} title="الملف الشخصي" onClick={() => go("edit-profile")}/>
+            <MoreRow icon={Ic.check} title="توثيق الهوية" onClick={() => go(verified ? "t-verified" : "t-pending")}/>
+            <MoreRow icon={Ic.wallet} title="طرق السحب" onClick={() => go("payout-add")}/>
+            <MoreRow icon={Ic.lock} title="الأمان" onClick={() => go("security")}/>
+            <MoreRow icon={Ic.lock} title="الخصوصية" onClick={() => go("privacy")}/>
+            <MoreRow icon={Ic.bell} title="الإشعارات" onClick={() => go("notifs")}/>
+          </MoreGroup>
+          <MoreGroup title="الدعم">
+            <MoreRow icon={Ic.sparkle} title="المساعدة" onClick={() => go("help-center")}/>
+            <MoreRow icon={Ic.send} title="تواصل معنا" onClick={() => go("support")}/>
+            <MoreRow icon={Ic.task} title="الإبلاغ عن مشكلة" onClick={() => go("report-user")}/>
+          </MoreGroup>
+        </>}
+        {role === "s" && <>
+          <MoreGroup title="التعلم">
+            <MoreRow icon={Ic.students} title="مدرسيني" onClick={() => go("find")}/>
+            <MoreRow icon={Ic.task} title="حجوزاتي" onClick={() => go("bookings")}/>
+            <MoreRow icon={Ic.classes} title="باقاتي" onClick={() => go("s-pkgs")}/>
+            <MoreRow icon={Ic.book} title="تقدمي" onClick={() => go("learn")}/>
+            <MoreRow icon={Ic.attach} title="الملفات المحفوظة" onClick={() => go("learn")}/>
+          </MoreGroup>
+          <MoreGroup title="المدفوعات">
+            <MoreRow icon={Ic.wallet} title="المحفظة" value="180 ج.م" onClick={() => go("s-wallet")}/>
+            <MoreRow icon={Ic.task} title="المعاملات" onClick={() => go("tx")}/>
+            <MoreRow icon={Ic.sparkle} title="اشتراكي" badge="Plus" onClick={() => go("s-plans")}/>
+            <MoreRow icon={Ic.robot} title="اشتراك AI" onClick={() => go("teac-ai")}/>
+            <MoreRow icon={Ic.wallet} title="طرق الدفع" onClick={() => go("pay-methods")}/>
+            <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
+          </MoreGroup>
+          <MoreGroup title="الحساب">
+            <MoreRow icon={Ic.user} title="الملف الشخصي" onClick={() => go("edit-profile")}/>
+            <MoreRow icon={Ic.family} title="ولي الأمر" sub="مرتبط بالحساب ✓" onClick={() => go("guardian")}/>
+            <MoreRow icon={Ic.bell} title="الإشعارات" onClick={() => go("notifs")}/>
+            <MoreRow icon={Ic.lock} title="الأمان" onClick={() => go("security")}/>
+            <MoreRow icon={Ic.lock} title="الخصوصية" onClick={() => go("privacy")}/>
+          </MoreGroup>
+          <MoreGroup title="الدعم">
+            <MoreRow icon={Ic.sparkle} title="المساعدة" onClick={() => go("help-center")}/>
+            <MoreRow icon={Ic.send} title="تواصل معنا" onClick={() => go("support")}/>
+            <MoreRow icon={Ic.task} title="الإبلاغ عن مشكلة" onClick={() => go("report-user")}/>
+          </MoreGroup>
+        </>}
+        <button onClick={() => go("logout")} style={{
+          width: "100%", minHeight: 52, marginTop: 8, borderRadius: 16,
+          border: `1.5px solid ${T.border}`, background: "transparent",
+          color: T.muted, fontFamily: AR, fontWeight: 800, fontSize: 15, cursor: "pointer",
+        }}>تسجيل الخروج</button>
+      </div>
+      <NavBar items={nav} active={role === "p" ? "more" : "profile"} onSelect={onNav}/>
+    </div>
   )
 }
 
@@ -2304,16 +2509,18 @@ function TeacherAI({ go }: { go: Go }) {
   )
 }
 
-function Chats({ go, role }: { go: Go; role: "s"|"t"|null }) {
+function Chats({ go, role }: { go: Go; role: Role | null }) {
   const items = role === "t" ? [
     { n: "أحمد علي", last: "تمام يا أستاذ، هسلّم الواجب.", t: "10:42 م", unread: 2, on: true },
     { n: "سارة محمود", last: "تم تفعيل باقة 8 حصص 🎉", t: "أمس", unread: 0, on: false },
+  ] : role === "p" ? [
+    { n: "أ/ محمد أحمد", last: "بخصوص أحمد: الحصة مؤكدة السبت.", t: "10:42 م", unread: 1, on: true },
   ] : [
     { n: "أ/ محمد أحمد", last: "تمام يا أحمد، هنراجع الجزء ده في الحصة.", t: "10:42 م", unread: 2, on: true, v: true },
     { n: "أ/ نورا علي", last: "تم حجز حصة يوم السبت الساعة 6:00 م", t: "أمس", unread: 0, on: false, v: true },
   ]
   return (
-    <Page title="المحادثات" onBack={() => go(role==="t"?"t-account":"s-account")}>
+    <Page title="المحادثات" onBack={() => go(role==="t"?"t-account":role==="p"?"p-more":"s-account")}>
       {items.map((c) => (
         <Card key={c.n} style={{ marginBottom: 10 }} onClick={() => go("chat")}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -2338,7 +2545,7 @@ function Chats({ go, role }: { go: Go; role: "s"|"t"|null }) {
   )
 }
 
-function ChatThread({ go, role }: { go: Go; role: "s"|"t"|null }) {
+function ChatThread({ go, role }: { go: Go; role: Role | null }) {
   const [rec, setRec] = useState(false)
   const [speed, setSpeed] = useState("1x")
   const mine = role !== "t"
@@ -2488,20 +2695,563 @@ function TeacherFinance({ go }: { go: Go }) {
   )
 }
 
+function ParentSetup({ go }: { go: Go }) {
+  return (
+    <Page title="بيانات ولي الأمر" onBack={() => go("role")} footer={<Btn onClick={() => go("p-add-child")}>التالي</Btn>}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}><Avatar name="أحمد محمد" size={72}/></div>
+      <p style={{ fontFamily: AR, fontSize: 12, color: T.muted, textAlign: "center", marginTop: 0 }}>صورة شخصية اختيارية</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <Input placeholder="الاسم بالكامل" value="أحمد محمد"/>
+        <Input placeholder="رقم الهاتف" value="01098765432"/>
+        <Input placeholder="البريد الإلكتروني" value="parent@teac.app"/>
+        <Input placeholder="كلمة المرور" type="password" value="••••••••"/>
+        <Input placeholder="تأكيد كلمة المرور" type="password" value="••••••••"/>
+      </div>
+    </Page>
+  )
+}
+
+function ParentAddChild({ go }: { go: Go }) {
+  return (
+    <Page title="أضف ابنك / ابنتك" onBack={() => go("p-setup")}>
+      <p style={{ fontFamily: AR, color: T.sub, lineHeight: 1.7 }}>اختار طريقة الربط المناسبة.</p>
+      <Card style={{ marginBottom: 12 }} onClick={() => go("p-link")}>
+        <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 16 }}>ربط حساب موجود</div>
+        <p style={{ fontFamily: AR, color: T.muted, margin: "6px 0 12px", fontSize: 13 }}>لو الطالب عنده حساب Teac Teacher بالفعل.</p>
+        <Chip color={T.brand}>ربط حساب</Chip>
+      </Card>
+      <Card onClick={() => go("p-create-child")}>
+        <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 16 }}>إنشاء حساب طالب جديد</div>
+        <p style={{ fontFamily: AR, color: T.muted, margin: "6px 0 12px", fontSize: 13 }}>أنشئ حساب جديد للطالب وأديره من حسابك.</p>
+        <Chip color={T.teal}>إنشاء حساب طالب</Chip>
+      </Card>
+    </Page>
+  )
+}
+
+function ParentLink({ go }: { go: Go }) {
+  const [mode, setMode] = useState("كود الطالب")
+  return (
+    <Page title="ربط حساب الطالب" onBack={() => go("p-add-child")} footer={<Btn onClick={() => go("p-link-sent")}>إرسال طلب الربط</Btn>}>
+      {["كود الطالب","رقم الهاتف","QR Code"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={mode===x} onClick={() => setMode(x)}>{x}</Choice></div>)}
+      {mode === "كود الطالب" && <Input placeholder="مثال TEAC-STU-4821" value="TEAC-STU-4821"/>}
+      {mode === "رقم الهاتف" && <Input placeholder="رقم هاتف الطالب"/>}
+      {mode === "QR Code" && <Card style={{ textAlign: "center", padding: 28 }}><div style={{ fontFamily: AR, color: T.muted }}>وجّه الكاميرا لكود الطالب</div></Card>}
+    </Page>
+  )
+}
+
+function ParentCreateChild({ go, onCreated }: { go: Go; onCreated: () => void }) {
+  const [stage, setStage] = useState("ثانوي")
+  const [grade, setGrade] = useState("أولى ثانوي")
+  return (
+    <Page title="إنشاء حساب طالب" onBack={() => go("p-add-child")} footer={<Btn onClick={() => { onCreated(); go("p-child-ok") }}>إنشاء الحساب</Btn>}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <Input placeholder="اسم الطالب" value="أحمد"/>
+        <Input placeholder="تاريخ الميلاد" value="12 / 3 / 2010"/>
+        <Input placeholder="المرحلة الدراسية" value={stage} onChange={setStage}/>
+        <Input placeholder="الصف الدراسي" value={grade} onChange={setGrade}/>
+        <Input placeholder="المواد" value="رياضيات، فيزياء"/>
+        <Input placeholder="المدرسة (اختياري)"/>
+      </div>
+    </Page>
+  )
+}
+
+function ParentHome({ go, kids, kidId, setKidId, hasKids }: {
+  go: Go; kids: Kid[]; kidId: string; setKidId: (id: string) => void; hasKids: boolean
+}) {
+  const kid = kids.find((k) => k.id === kidId) ?? kids[0]
+  return (
+    <ParentShell go={go} active="home">
+      <div style={{ background: T.gradBrand, padding: "44px 20px 18px", flexShrink: 0 }}>
+        <StatusBar light/>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: AR }}>أهلاً يا أحمد 👋</h1>
+            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: AR }}>ده ملخص متابعة أولادك النهاردة</p>
+          </div>
+          <button onClick={() => go("p-notifs")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, color: "white", cursor: "pointer" }}>
+            <span style={{ width: 20, height: 20, display: "flex" }}>{Ic.bell}</span>
+          </button>
+        </div>
+        {hasKids && <div style={{ marginTop: 14 }}><ChildSwitcher kids={kids} id={kidId} onPick={setKidId} onAdd={() => go("p-add-child")}/></div>}
+      </div>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "16px 20px 20px" }}>
+        {!hasKids ? (
+          <EmptyBlock
+            title="أضف أول طالب"
+            sub="اربط حساب ابنك أو أنشئ له حساب جديد علشان تبدأ المتابعة."
+            actions={[
+              { label: "ربط حساب موجود", onClick: () => go("p-link") },
+              { label: "إنشاء حساب طالب", onClick: () => go("p-create-child"), primary: false },
+            ]}
+          />
+        ) : kid && (
+          <>
+            <Card style={{ marginBottom: 12 }} onClick={() => go("p-child")}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 17 }}>{kid.name} محمد</div>
+                  <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>{kid.grade}</div>
+                  <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, marginTop: 8 }}>{kid.note}</div>
+                </div>
+                <ProgressRing pct={kid.pct} size={68}/>
+              </div>
+              <Btn variant="ghost" onClick={() => go("p-child")}>عرض التفاصيل</Btn>
+            </Card>
+            <HomeSection title="اليوم">
+              <Card style={{ marginBottom: 8 }} onClick={() => go("p-bookings")}>
+                <div style={{ fontFamily: AR, fontWeight: 800 }}>حصة اليوم · رياضيات</div>
+                <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>أ/ محمد · 6:00 مساءً</div>
+                <Chip color={T.emerald}>مؤكدة</Chip>
+              </Card>
+              <Card onClick={() => go("p-hw")}>
+                <div style={{ fontFamily: AR, fontWeight: 800 }}>واجب مستحق · فيزياء</div>
+                <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>التسليم غداً · مشاهدة الحالة فقط</div>
+                <Btn variant="ghost" onClick={() => go("p-hw")}>عرض الواجب</Btn>
+              </Card>
+            </HomeSection>
+            <HomeSection title="الأداء الدراسي">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                {[["الحضور","90%"],["متوسط الاختبارات","82%"],["واجبات مكتملة","4/5"],["التطور الأسبوعي","+6%"]].map(([a,b]) => (
+                  <Card key={a}><div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{a}</div><div style={{ fontFamily: LAT, fontWeight: 900 }}>{b}</div></Card>
+                ))}
+              </div>
+              <Btn variant="secondary" onClick={() => go("p-report")}>التقرير الكامل</Btn>
+            </HomeSection>
+            <Card style={{ background: T.aiXLight, border: `1px solid ${T.ai}22` }} onClick={() => go("p-insight")}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+                <AiTag/>
+                <div style={{ fontFamily: AR, fontWeight: 900 }}>ملخص ذكي لولي الأمر ✨</div>
+              </div>
+              <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.75, margin: 0 }}>
+                {kid.id === "sara"
+                  ? "سارة محتاجة دعم في العلوم هذا الأسبوع، والحضور منتظم. يفضل مراجعة الفصل قبل الاختبار."
+                  : "أحمد متقدم في الجبر، لكن مستواه انخفض في الفيزياء خلال الأسبوعين الماضيين. يفضل مراجعة الفصل الثاني قبل الاختبار القادم."}
+              </p>
+              <p style={{ fontFamily: AR, fontSize: 11, color: T.muted, margin: "8px 0 0" }}>لا يشمل محادثات المعلم الذكي الخاصة بالطالب.</p>
+              <Btn variant="ghost" onClick={() => go("p-insight")}>عرض التفاصيل</Btn>
+            </Card>
+            <Card style={{ marginTop: 12, background: T.amberLt }} onClick={() => go("p-approve")}>
+              <div style={{ fontFamily: AR, fontWeight: 800 }}>طلبات تحتاج موافقة</div>
+              <div style={{ fontFamily: AR, fontSize: 13, color: T.sub }}>أحمد طلب شراء باقة · 2,650 ج.م</div>
+            </Card>
+          </>
+        )}
+      </div>
+    </ParentShell>
+  )
+}
+
+function ParentKids({ go, kids }: { go: Go; kids: Kid[] }) {
+  const label: Record<Kid["link"], string> = { connected: "تم الربط", pending: "في انتظار الموافقة", rejected: "تم رفض طلب الربط", removed: "تم إلغاء الربط" }
+  const color: Record<Kid["link"], string> = { connected: T.emerald, pending: T.amber, rejected: T.rose, removed: T.muted }
+  return (
+    <ParentShell go={go} active="kids">
+      <StatusBar/>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "56px 20px 20px" }}>
+        <h1 style={{ fontFamily: AR, fontSize: 22, fontWeight: 900, margin: "0 0 14px" }}>أولادي</h1>
+        {kids.map((k) => (
+          <Card key={k.id} style={{ marginBottom: 10 }} onClick={() => go("p-child")}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontFamily: AR, fontWeight: 900 }}>{k.name}</div>
+                <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>{k.grade}</div>
+              </div>
+              <Chip color={color[k.link]}>{label[k.link]}</Chip>
+            </div>
+            <ProgressBar pct={k.pct}/>
+          </Card>
+        ))}
+        <Btn onClick={() => go("p-add-child")}>+ إضافة طالب</Btn>
+      </div>
+    </ParentShell>
+  )
+}
+
+function ParentPay({ go, kidId, kids, setKidId }: { go: Go; kidId: string; kids: Kid[]; setKidId: (id: string) => void }) {
+  const [filter, setFilter] = useState(kidId === "all" ? "كل الأبناء" : (kids.find(k => k.id===kidId)?.name ?? "كل الأبناء"))
+  return (
+    <ParentShell go={go} active="pay">
+      <StatusBar/>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "56px 20px 20px" }}>
+        <h1 style={{ fontFamily: AR, fontSize: 22, fontWeight: 900, margin: "0 0 6px" }}>المدفوعات العائلية</h1>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          {["كل الأبناء", ...kids.map(k => k.name)].map((x) => (
+            <button key={x} onClick={() => { setFilter(x); if (x==="كل الأبناء") setKidId(kids[0]?.id ?? "ahmed") }} style={{
+              padding: "8px 12px", borderRadius: 100, border: `1px solid ${T.border}`,
+              background: filter===x ? T.brand : T.card, color: filter===x ? "white" : T.text, fontFamily: AR, fontWeight: 800, cursor: "pointer",
+            }}>{x}</button>
+          ))}
+        </div>
+        <Card style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: AR, color: T.muted }}>إجمالي الإنفاق هذا الشهر</div>
+          <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 28, color: T.brand }}>3,850 ج.م</div>
+        </Card>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+          {[["حصص","1,750"],["باقات","1,500"],["اشتراكات","600"]].map(([a,b]) => (
+            <Card key={a}><div style={{ fontFamily: AR, fontSize: 11, color: T.muted }}>{a}</div><div style={{ fontFamily: LAT, fontWeight: 800 }}>{b}</div></Card>
+          ))}
+        </div>
+        <Card style={{ marginBottom: 8 }} onClick={() => go("p-wallet")}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>المحفظة العائلية</div>
+          <div style={{ fontFamily: LAT, fontWeight: 900, color: T.emerald }}>2,400 ج.م</div>
+        </Card>
+        <Btn onClick={() => go("p-tx")}>المعاملات</Btn>
+        <div style={{ height: 8 }}/>
+        <Btn variant="secondary" onClick={() => go("p-spend")}>حدود الإنفاق</Btn>
+      </div>
+    </ParentShell>
+  )
+}
+
+function ParentNotifs({ go }: { go: Go }) {
+  const items = [
+    { t: "الدراسة", title: "أحمد حصل على 8/10 في اختبار الرياضيات", s: "p-report" as Screen },
+    { t: "الحضور", title: "سارة لم تحضر حصة اليوم", s: "p-child" as Screen },
+    { t: "الحجز", title: "تم تأكيد حصة أحمد مع أ/ محمد", s: "p-bookings" as Screen },
+    { t: "الدفع", title: "تم خصم 350 ج.م مقابل حصة أحمد", s: "p-tx-detail" as Screen },
+    { t: "الموافقات", title: "أحمد طلب شراء باقة جديدة", s: "p-approve-pkg" as Screen },
+    { t: "الاشتراكات", title: "اشتراك Student Plus سيتم تجديده خلال 3 أيام", s: "p-subs" as Screen },
+    { t: "التقارير", title: "التقرير الأسبوعي لأحمد جاهز", s: "p-report" as Screen },
+  ]
+  return (
+    <ParentShell go={go} active="notifs">
+      <StatusBar/>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "56px 20px 20px" }}>
+        <h1 style={{ fontFamily: AR, fontSize: 22, fontWeight: 900 }}>التنبيهات</h1>
+        {items.map((n) => (
+          <Card key={n.title} style={{ marginBottom: 8 }} onClick={() => go(n.s)}>
+            <Chip color={T.brand}>{n.t}</Chip>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 8 }}>{n.title}</div>
+          </Card>
+        ))}
+      </div>
+    </ParentShell>
+  )
+}
+
+function ParentFlow({ screen, go, ctx }: {
+  screen: Screen
+  go: Go
+  ctx: {
+    kids: Kid[]
+    kidId: string
+    setKidId: (id: string) => void
+    hasKids: boolean
+    setHasKids: (v: boolean) => void
+    role: Role | null
+    verified?: boolean
+  }
+}) {
+  const kid = ctx.kids.find((k) => k.id === ctx.kidId) ?? ctx.kids[0]
+  const acc: Screen = ctx.role === "p" ? "p-more" : ctx.role === "t" ? "t-account" : "s-account"
+
+  if (screen === "p-setup") return <ParentSetup go={go}/>
+  if (screen === "p-add-child") return <ParentAddChild go={go}/>
+  if (screen === "p-link") return <ParentLink go={go}/>
+  if (screen === "p-link-sent") return (
+    <Page title="طلب الربط" onBack={() => go("p-add-child")} footer={<Btn onClick={() => { ctx.setHasKids(true); go("p-home") }}>متابعة للرئيسية</Btn>}>
+      <SuccessBlock title="تم إرسال طلب الربط للطالب" sub="هتوصلك إشعار بعد الموافقة. لو الطالب قاصر وتم التحقق، الربط يكتمل حسب سياسة المنصة." cta="متابعة للرئيسية" onCta={() => { ctx.setHasKids(true); go("p-home") }}/>
+    </Page>
+  )
+  if (screen === "p-create-child") return <ParentCreateChild go={go} onCreated={() => ctx.setHasKids(true)}/>
+  if (screen === "p-child-ok") return (
+    <Page title="تم" onBack={() => go("p-home")} footer={<Btn onClick={() => go("p-home")}>الذهاب للرئيسية</Btn>}>
+      <SuccessBlock title="تم إضافة أحمد لحسابك بنجاح 🎉" cta="الذهاب للرئيسية" onCta={() => go("p-home")}/>
+    </Page>
+  )
+  if (screen === "p-home") return <ParentHome go={go} kids={ctx.kids} kidId={ctx.kidId} setKidId={ctx.setKidId} hasKids={ctx.hasKids}/>
+  if (screen === "p-kids") return <ParentKids go={go} kids={ctx.kids}/>
+  if (screen === "p-pay") return <ParentPay go={go} kidId={ctx.kidId} kids={ctx.kids} setKidId={ctx.setKidId}/>
+  if (screen === "p-notifs") return <ParentNotifs go={go}/>
+  if (screen === "p-more") return <Account go={go} role="p" verified={ctx.verified}/>
+  if (screen === "p-child") return (
+    <Page title={kid?.name ?? "الطالب"} onBack={() => go("p-home")}>
+      <ProgressRing pct={kid?.pct ?? 0} size={88}/>
+      <p style={{ fontFamily: AR, textAlign: "center" }}>{kid?.note}</p>
+      <Btn onClick={() => go("p-report")}>التقرير الأسبوعي</Btn>
+      <div style={{ height: 8 }}/>
+      <Btn variant="secondary" onClick={() => go("p-perms")}>صلاحياتي كولي أمر</Btn>
+    </Page>
+  )
+  if (screen === "p-hw") return (
+    <Page title="واجب الفيزياء" onBack={() => go("p-home")}>
+      <p style={{ fontFamily: AR, color: T.sub }}>التسليم غداً · الحالة: لم يُسلَّم بعد</p>
+      <Card><div style={{ fontFamily: AR }}>ولي الأمر يشوف الحالة فقط — الحل للطالب.</div></Card>
+    </Page>
+  )
+  if (screen === "p-insight") return (
+    <Page title="ملخص ذكي" onBack={() => go("p-home")}>
+      <AiTag/>
+      <p style={{ fontFamily: AR, lineHeight: 1.8 }}>أحمد متقدم في الجبر، لكن مستواه انخفض في الفيزياء خلال الأسبوعين الماضيين. يفضل مراجعة الفصل الثاني قبل الاختبار القادم.</p>
+      <Card style={{ background: T.brandXLight }}><div style={{ fontFamily: AR, fontSize: 13 }}>محادثات المعلم الذكي الخاصة بالطالب غير ظاهرة لولي الأمر.</div></Card>
+    </Page>
+  )
+  if (screen === "p-report") return (
+    <Page title="التقرير الأسبوعي" onBack={() => go("p-home")} footer={<Btn onClick={() => go("p-report-full")}>عرض التقرير التفصيلي</Btn>}>
+      <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>{kid?.name} · {kid?.grade}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        {[["الحضور","90%"],["الواجبات","4 / 5"],["متوسط الاختبارات","82%"],["نشاط المذاكرة","6 ساعات"]].map(([a,b]) => (
+          <Card key={a}><div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{a}</div><div style={{ fontFamily: LAT, fontWeight: 900 }}>{b}</div></Card>
+        ))}
+      </div>
+      <Card style={{ marginTop: 10 }}><div style={{ fontFamily: AR }}>أقوى مادة: الرياضيات</div><div style={{ fontFamily: AR, color: T.amber }}>يحتاج متابعة: الفيزياء</div></Card>
+      <Card style={{ marginTop: 10, background: T.aiXLight }}><div style={{ fontFamily: AR }}>أحمد حافظ على أداء جيد في الرياضيات، لكنه محتاج يراجع الفيزياء قبل الاختبار القادم.</div></Card>
+    </Page>
+  )
+  if (screen === "p-report-full") return (
+    <Page title="التقرير التفصيلي" onBack={() => go("p-report")}>
+      {["الرياضيات 88%","الفيزياء 61%","الإنجليزي 79%"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+    </Page>
+  )
+  if (screen === "p-perms") return (
+    <Page title="صلاحياتي كولي أمر" onBack={() => go("p-more")}>
+      {([
+        ["أكاديمي", ["مشاهدة مستوى الطالب","مشاهدة الحضور","مشاهدة نتائج الاختبارات","مشاهدة حالة الواجبات","مشاهدة المدرسين","مشاهدة جدول الحصص","مشاهدة التقارير"]],
+        ["مالي", ["دفع تكلفة الحصص","شحن محفظة الطالب","شراء الباقات","إدارة الاشتراكات","إدارة اشتراك AI","مشاهدة المعاملات","طلب استرداد حسب السياسة","مشاهدة الفواتير"]],
+        ["الحجز", ["الموافقة على الحجوزات","حجز حصة للطالب","إعادة جدولة","إلغاء حجز حسب السياسة"]],
+        ["التواصل", ["التواصل مع مدرس الطالب","استقبال رسائل إدارية من المدرس","استقبال تنبيهات الحصص"]],
+      ] as [string, string[]][]).map(([g, rows]) => (
+        <div key={g} style={{ marginBottom: 14 }}>
+          <div style={{ fontFamily: AR, fontWeight: 900, marginBottom: 6 }}>{g}</div>
+          {rows.map((r) => <div key={r} style={{ fontFamily: AR, fontSize: 13, color: T.sub, marginBottom: 4 }}>• {r}</div>)}
+        </div>
+      ))}
+      <Card style={{ background: T.brandXLight }}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>الخصوصية</div>
+        <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.7 }}>ولي الأمر لا يرى محادثات الطالب الخاصة مع المعلم الذكي، ولا سجل الشات الخاص بين الطالب والمدرس — إلا لو السياسة سمحت أو لأمان الطفل.</p>
+      </Card>
+    </Page>
+  )
+  if (screen === "p-wallet") return (
+    <Page title="المحفظة العائلية" onBack={() => go("p-pay")}>
+      <Card style={{ marginBottom: 12 }}><div style={{ fontFamily: AR, color: T.muted }}>الرصيد</div><div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 28 }}>2,400 ج.م</div></Card>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <Btn onClick={() => go("p-wallet-add")}>إضافة رصيد</Btn>
+        <Btn variant="secondary" onClick={() => go("p-transfer")}>تحويل للطالب</Btn>
+      </div>
+      <div style={{ height: 10 }}/>
+      <Btn variant="ghost" onClick={() => go("p-tx")}>المعاملات</Btn>
+      <Btn variant="ghost" onClick={() => go("p-spend")}>إدارة المصروف</Btn>
+    </Page>
+  )
+  if (screen === "p-wallet-add") return (
+    <Page title="إضافة رصيد" onBack={() => go("p-wallet")} footer={<Btn onClick={() => go("pay-ok")}>شحن 500 ج.م</Btn>}>
+      <Input placeholder="المبلغ" value="500"/>
+    </Page>
+  )
+  if (screen === "p-transfer") return (
+    <Page title="تحويل للطالب" onBack={() => go("p-wallet")} footer={<Btn onClick={() => go("p-wallet")}>تحويل 200 ج.م لأحمد</Btn>}>
+      <p style={{ fontFamily: AR }}>من المحفظة العائلية إلى محفظة الطالب.</p>
+      <Input placeholder="المبلغ" value="200"/>
+    </Page>
+  )
+  if (screen === "p-spend") return (
+    <Page title="حدود الإنفاق" onBack={() => go("p-pay")}>
+      {ctx.kids.map((k) => (
+        <Card key={k.id} style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>{k.name}</div>
+          <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginBottom: 8 }}>حد شهري 1,500 ج.م</div>
+          {["طلب موافقة على كل دفعة","موافقة فوق مبلغ معيّن","السماح بالدفع التلقائي","منع مشتريات السوق","السماح بتجديد الاشتراك"].map((x) => (
+            <div key={x} style={{ fontFamily: AR, fontSize: 13, marginBottom: 6 }}>• {x}</div>
+          ))}
+        </Card>
+      ))}
+    </Page>
+  )
+  if (screen === "p-tx") return (
+    <Page title="المعاملات" onBack={() => go("p-pay")}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {["كل الأبناء","أحمد","سارة","حصص","باقات","اشتراكات","AI","شحن","استرداد"].map((x) => <Chip key={x}>{x}</Chip>)}
+      </div>
+      {[
+        { t: "حصة رياضيات — أحمد", s: "أ/ محمد أحمد", a: "-350 ج.م", st: "تم الدفع", c: T.rose },
+        { t: "اشتراك AI — سارة", s: "تجديد شهري", a: "-149 ج.م", st: "تم التجديد", c: T.rose },
+        { t: "استرداد حصة — أحمد", s: "إلغاء حسب السياسة", a: "+350 ج.م", st: "تم الاسترداد", c: T.emerald },
+      ].map((x) => (
+        <Card key={x.t} style={{ marginBottom: 8 }} onClick={() => go("p-tx-detail")}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontFamily: AR, fontWeight: 800 }}>{x.t}</div>
+              <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{x.s}</div>
+              <Chip color={T.emerald}>{x.st}</Chip>
+            </div>
+            <div style={{ fontFamily: LAT, fontWeight: 900, color: x.c }}>{x.a}</div>
+          </div>
+        </Card>
+      ))}
+    </Page>
+  )
+  if (screen === "p-tx-detail") return (
+    <Page title="تفاصيل المعاملة" onBack={() => go("p-tx")} footer={<Btn onClick={() => go("invoices")}>تحميل الفاتورة</Btn>}>
+      {[["الطالب","أحمد"],["المدرس","أ/ محمد أحمد"],["الخدمة","حصة رياضيات"],["المبلغ","350 ج.م"],["الخصم","0"],["الرسوم","حسب السياسة"],["الإجمالي","350 ج.م"],["طريقة الدفع","المحفظة العائلية"],["التاريخ","19 أغسطس 2026"],["الحالة","تم الدفع"]].map(([k,v]) => (
+        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontFamily: AR, marginBottom: 8 }}><span style={{ color: T.muted }}>{k}</span><span style={{ fontWeight: 800 }}>{v}</span></div>
+      ))}
+    </Page>
+  )
+  if (screen === "p-subs") return (
+    <Page title="اشتراكات الأسرة" onBack={() => go("p-more")}>
+      {ctx.kids.map((k) => (
+        <Card key={k.id} style={{ marginBottom: 10 }} onClick={() => go("p-sub-manage")}>
+          <div style={{ fontFamily: AR, fontWeight: 900 }}>{k.name}</div>
+          <div style={{ fontFamily: AR, fontSize: 13 }}>{k.plan} · نشط</div>
+          <div style={{ fontFamily: AR, fontSize: 13 }}>{k.ai} · {k.ai.includes("Plus") ? "نشط" : "مجاني"}</div>
+          {k.id === "ahmed" && <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>التجديد: 1 سبتمبر</div>}
+          <Btn variant="ghost">إدارة الاشتراك</Btn>
+        </Card>
+      ))}
+      <Card style={{ background: T.gray, boxShadow: "none" }}>
+        <div style={{ fontFamily: AR, fontWeight: 900 }}>Teac Family</div>
+        <p style={{ fontFamily: AR, fontSize: 13, color: T.muted, margin: "6px 0 0" }}>اشتراك واحد لإدارة مزايا أكتر من طالب. قريباً — مش مفعّل حالياً.</p>
+      </Card>
+    </Page>
+  )
+  if (screen === "p-sub-manage") return (
+    <Page title="إدارة الاشتراك" onBack={() => go("p-subs")}>
+      {["ترقية","تخفيض","إدارة التجديد","تغيير طريقة الدفع","عرض الفواتير"].map((x) => (
+        <Card key={x} style={{ marginBottom: 8 }} onClick={() => go(x === "عرض الفواتير" ? "invoices" : "checkout")}><div style={{ fontFamily: AR, fontWeight: 700 }}>{x}</div></Card>
+      ))}
+    </Page>
+  )
+  if (screen === "p-pkgs") return (
+    <Page title="باقات أولادي" onBack={() => go("p-more")}>
+      <Card>
+        <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>أحمد</div>
+        <div style={{ fontFamily: AR, fontWeight: 900 }}>8 حصص رياضيات</div>
+        <div style={{ fontFamily: AR, fontSize: 13 }}>أ/ محمد · متبقي 5 / 8 · ينتهي 30 سبتمبر</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+          <Btn onClick={() => go("p-bookings")}>احجز حصة</Btn>
+          <Btn variant="secondary" onClick={() => go("p-chat")}>تواصل مع المدرس</Btn>
+        </div>
+        <Btn variant="ghost" onClick={() => go("pkg-active")}>التفاصيل والاستخدام</Btn>
+      </Card>
+    </Page>
+  )
+  if (screen === "p-bookings") return (
+    <Page title="الحجوزات" onBack={() => go("p-home")}>
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12 }}>
+        {["القادمة","تحتاج موافقة","مكتملة","ملغاة"].map((x,i) => <Chip key={x} filled={i===0}>{x}</Chip>)}
+      </div>
+      <Card onClick={() => go("p-approve-book")}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد · رياضيات</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>أ/ محمد · السبت 6:00 م · 350 ج.م · مدفوع</div>
+      </Card>
+    </Page>
+  )
+  if (screen === "p-teachers") return (
+    <Page title="المدرسون" onBack={() => go("p-more")}>
+      <Card onClick={() => go("p-chat")}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>أ/ محمد أحمد</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>بخصوص: أحمد محمد · رياضيات</div>
+        <Btn variant="ghost">تواصل مع المدرس</Btn>
+      </Card>
+    </Page>
+  )
+  if (screen === "p-chat") return (
+    <Page title="أ/ محمد أحمد" onBack={() => go("p-teachers")} pad={false}>
+      <div style={{ padding: "8px 16px", background: T.card, borderBottom: `0.5px solid ${T.border}` }}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>أ/ محمد أحمد</div>
+        <div style={{ fontFamily: AR, fontSize: 12, color: T.brand }}>بخصوص: أحمد محمد · محادثة ولي أمر منفصلة عن شات الطالب</div>
+      </div>
+      <div style={{ padding: 16 }}>
+        <Card><div style={{ fontFamily: AR, fontSize: 14 }}>ممكن نأكد حصة السبت لأحمد؟</div></Card>
+        <p style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>نص · صور · PDF · صوت — المكالمات حسب سياسة المنصة.</p>
+      </div>
+    </Page>
+  )
+  if (screen === "p-approve") return (
+    <Page title="الموافقات" onBack={() => go("p-home")}>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("p-approve-pkg")}><div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد طلب شراء باقة</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("p-approve-book")}><div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد يريد حجز حصة</div></Card>
+      <Card onClick={() => go("p-approve-ai")}><div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد طلب ترقية المعلم الذكي</div></Card>
+    </Page>
+  )
+  if (screen === "p-approve-pkg") return (
+    <Page title="موافقة شراء" onBack={() => go("p-approve")} footer={
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Btn onClick={() => go("p-approve-ok")}>الموافقة والدفع</Btn>
+        <Btn variant="secondary" onClick={() => go("p-home")}>رفض</Btn>
+      </div>
+    }>
+      <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>أحمد طلب شراء باقة</div>
+      {[["المدرس","أ/ محمد أحمد"],["الباقة","8 حصص رياضيات"],["السعر","2,650 ج.م"]].map(([k,v]) => (
+        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontFamily: AR, marginBottom: 8 }}><span>{k}</span><b>{v}</b></div>
+      ))}
+    </Page>
+  )
+  if (screen === "p-approve-book") return (
+    <Page title="موافقة حجز" onBack={() => go("p-approve")} footer={
+      <div style={{ display: "flex", gap: 8 }}>
+        <Btn variant="secondary" onClick={() => go("p-home")}>رفض</Btn>
+        <Btn onClick={() => go("book-pay")}>الموافقة</Btn>
+      </div>
+    }>
+      <div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد يريد حجز حصة</div>
+      <p style={{ fontFamily: AR }}>أ/ محمد · Saturday · 6:00 PM · 350 ج.م</p>
+    </Page>
+  )
+  if (screen === "p-approve-ai") return (
+    <Page title="ترقية AI" onBack={() => go("p-approve")} footer={<Btn onClick={() => go("p-approve-ok")}>الموافقة والاشتراك</Btn>}>
+      <div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد طلب ترقية المعلم الذكي</div>
+      <p style={{ fontFamily: AR }}>الحالي: Free · المطلوب: AI Plus · 149 ج.م / شهر</p>
+    </Page>
+  )
+  if (screen === "p-approve-ok") return (
+    <Page title="تم" onBack={() => go("p-home")} footer={<Btn onClick={() => go("p-home")}>العودة</Btn>}>
+      <SuccessBlock title="تمت الموافقة والدفع" cta="العودة" onCta={() => go("p-home")}/>
+    </Page>
+  )
+  if (screen === "devices") return (
+    <Page title="الأجهزة" onBack={() => go(acc)}>
+      {["iPhone 15 · القاهرة · الآن","Chrome · ويندوز · أمس"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+    </Page>
+  )
+  if (screen === "help-center") return (
+    <Page title="مركز المساعدة" onBack={() => go(acc)}>
+      {["الحساب","الدفع","أولادي","الحجوزات"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+    </Page>
+  )
+  if (screen === "policies") return (
+    <Page title="الشروط والسياسات" onBack={() => go(acc)}>
+      {["شروط الاستخدام","سياسة الخصوصية","سياسة الاسترداد"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+    </Page>
+  )
+  if (screen === "account-settings") return (
+    <Page title="الحساب" onBack={() => go("security")}>
+      <MoreRow icon={Ic.lock} title="حذف الحساب" sub="من الإعدادات — غير ظاهر في المزيد" danger onClick={() => go("delete-acc")}/>
+    </Page>
+  )
+  return null
+}
+
 function ExtraFlow({ screen, go, ctx }: {
   screen: Screen
   go: Go
   ctx: {
     verified: boolean
     setVerified: (v: boolean) => void
-    role: "s"|"t"|null
+    role: Role | null
     dueOrders: DueOrder[]
     settlements: Settlement[]
     requestSettlement: () => void
     approvePending: () => void
+    kids: Kid[]
+    kidId: string
+    setKidId: (id: string) => void
+    hasKids: boolean
+    setHasKids: (v: boolean) => void
   }
 }) {
-  const backAcc = ctx.role === "t" ? "t-account" : "s-account"
+  if (screen === "s-approve-sent") return (
+    <Page title="طلب الموافقة" onBack={() => go("s-home")} footer={<Btn onClick={() => go("s-home")}>العودة</Btn>}>
+      <SuccessBlock title="تم إرسال طلب موافقة لولي الأمر" sub="باقة رياضيات — 2,650 ج.م · هتوصلك نتيجة الموافقة." cta="العودة" onCta={() => go("s-home")}/>
+    </Page>
+  )
+  const parentUi = ParentFlow({ screen, go, ctx })
+  if (parentUi) return parentUi
+  const backAcc: Screen = ctx.role === "t" ? "t-account" : ctx.role === "p" ? "p-more" : "s-account"
 
   if (screen === "chats") return <Chats go={go} role={ctx.role}/>
   if (screen === "chat") return <ChatThread go={go} role={ctx.role}/>
@@ -2809,13 +3559,14 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "pkg-pay") return (
-    <Page title="شراء الباقة" onBack={() => go("s-pkg")} footer={<Btn onClick={() => go("pkg-active")}>دفع وتفعيل الباقة</Btn>}>
+    <Page title="شراء الباقة" onBack={() => go("s-pkg")} footer={<Btn onClick={() => go(ctx.role==="s"?"s-approve-sent":"pkg-active")}>{ctx.role==="s"?"إرسال طلب موافقة لولي الأمر":"دفع وتفعيل الباقة"}</Btn>}>
       <PriceSummary rows={[
         { k: "سعر الباقة", v: "2,650 ج.م" },
         { k: "خصم", v: "550 ج.م" },
         { k: "كوبون", v: "—" },
         { k: "رصيد محفظة", v: "0" },
       ]} total="2,650 ج.م"/>
+      {ctx.role==="s" && <p style={{ fontFamily: AR, color: T.sub, marginTop: 12 }}>هيتبعت طلب موافقة لولي الأمر قبل الدفع.</p>}
     </Page>
   )
   if (screen === "pkg-info") return (
@@ -3172,8 +3923,10 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "security") return (
     <Page title="الأمان" onBack={() => go(backAcc)}>
-      {["تغيير كلمة المرور","التحقق بخطوتين","الأجهزة المسجّلة","تسجيل الخروج من كل الأجهزة"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+      <Card style={{ marginBottom: 8 }} onClick={() => go("devices")}><div style={{ fontFamily: AR }}>الأجهزة المسجّلة</div></Card>
+      {["تغيير كلمة المرور","التحقق بخطوتين","تسجيل الخروج من كل الأجهزة"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
       {ctx.role==="t" && <Card onClick={() => go(ctx.verified?"t-verified":"t-pending")}><div style={{ fontFamily: AR }}>حالة توثيق الهوية</div></Card>}
+      <Card style={{ marginTop: 8 }} onClick={() => go("account-settings")}><div style={{ fontFamily: AR, color: T.muted }}>إعدادات الحساب</div></Card>
     </Page>
   )
   if (screen === "privacy") return (
@@ -3217,15 +3970,21 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "guardian") return (
-    <Page title="ولي الأمر" onBack={() => go("s-account")} footer={<Btn onClick={() => go("s-account")}>حفظ</Btn>}>
-      <p style={{ fontFamily: AR, color: T.sub }}>هل الطالب أقل من السن المطلوب لإدارة الحساب بنفسه؟</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <Input placeholder="اسم ولي الأمر" value="علي محمود"/>
-        <Input placeholder="رقم الهاتف"/>
-        <Input placeholder="البريد"/>
-        <Input placeholder="صلة القرابة" value="والد"/>
-      </div>
-      <p style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 12 }}>محادثات المعلم الذكي لا تظهر لولي الأمر بشكل افتراضي.</p>
+    <Page title="ولي الأمر" onBack={() => go("s-account")}>
+      <Card style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Avatar name="أحمد محمد" size={48}/>
+          <div>
+            <div style={{ fontFamily: AR, fontWeight: 900 }}>أحمد محمد</div>
+            <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>صلة القرابة: والد</div>
+            <Chip color={T.emerald}>مرتبط بالحساب ✓</Chip>
+          </div>
+        </div>
+      </Card>
+      <Card style={{ background: T.brandXLight }}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>الصلاحيات</div>
+        <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.7 }}>ولي الأمر يشوف التقدم والحضور والمدفوعات. محادثات المعلم الذكي وسجل الشات الخاص مع المدرس مش ظاهرة له بشكل افتراضي.</p>
+      </Card>
     </Page>
   )
   if (screen === "book-pay") return <BookPay go={go}/>
@@ -3420,10 +4179,11 @@ function Entitlements({
   )
 }
 
-function EditProfile({ go, role }: { go: Go; role: "s"|"t"|null }) {
-  const [name, setName] = useState(role==="t"?"محمد أحمد حسن":"أحمد علي")
+function EditProfile({ go, role }: { go: Go; role: Role | null }) {
+  const [name, setName] = useState(role==="t"?"محمد أحمد حسن":"أحمد محمد")
+  const back: Screen = role==="t"?"t-account":role==="p"?"p-more":"s-account"
   return (
-    <Page title="تعديل بيانات الحساب" onBack={() => go(role==="t"?"t-account":"s-account")} footer={<Btn onClick={() => go(role==="t"?"t-account":"s-account")}>حفظ التعديلات</Btn>}>
+    <Page title="تعديل بيانات الحساب" onBack={() => go(back)} footer={<Btn onClick={() => go(back)}>حفظ التعديلات</Btn>}>
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}><Avatar name={name} size={80}/></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <Input placeholder="الاسم" value={name} onChange={setName}/>
@@ -3431,6 +4191,7 @@ function EditProfile({ go, role }: { go: Go; role: "s"|"t"|null }) {
         <Input placeholder="البريد الإلكتروني" value={role==="t"?"mohamed@teac.app":"ahmed@teac.app"}/>
         {role==="s" && <Input placeholder="الصف الدراسي" value="أولى ثانوي"/>}
         {role==="t" && <Input placeholder="نبذة قصيرة" value="مدرس رياضيات للثانوية العامة"/>}
+        {role==="p" && <Input placeholder="صلة القرابة" value="والد"/>}
       </div>
     </Page>
   )
@@ -3661,7 +4422,10 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("splash")
   const [hasTeacher, setHasTeacher] = useState(false)
   const [teacherEmpty, setTeacherEmpty] = useState(true)
-  const [role, setRole] = useState<"s"|"t"|null>(null)
+  const [role, setRole] = useState<Role | null>(null)
+  const [hasKids, setHasKids] = useState(false)
+  const [kids] = useState<Kid[]>(DEMO_KIDS)
+  const [kidId, setKidId] = useState("ahmed")
   const [verified, setVerified] = useState(false)
   const [dueOrders, setDueOrders] = useState<DueOrder[]>([
     { id: "#8246", time: "18:00", value: "180", fee: "حسب السياسة", vat: "—", due: "153", sub: "رياضيات · أحمد علي" },
@@ -3708,7 +4472,7 @@ export default function App() {
         {screen === "onboard" && <Onboard go={() => go("login")} goLogin={() => go("login")}/>}
         {screen === "login" && <Login go={() => go("role")} onForgot={() => go("forgot")}/>}
         {screen === "forgot" && <Forgot go={go}/>}
-        {screen === "role" && <RoleSelect goStudent={() => { setRole("s"); go("s-setup") }} goTeacher={() => { setRole("t"); go("t-setup") }}/>}
+        {screen === "role" && <RoleSelect goStudent={() => { setRole("s"); go("s-setup") }} goTeacher={() => { setRole("t"); go("t-setup") }} goParent={() => { setRole("p"); go("p-setup") }}/>}
         {screen === "s-setup" && <StudentSetup go={go}/>}
         {screen === "t-setup" && <TeacherSetup go={go}/>}
         {screen === "s-start" && <StudentStart go={go}/>}
@@ -3746,13 +4510,14 @@ export default function App() {
         {screen === "hw" && <Homework go={go}/>}
         {screen === "s-account" && <Account go={go} role="s"/>}
         {screen === "t-account" && <Account go={go} role="t" verified={verified}/>}
-        {screen === "notifs" && <Notifs go={go} back={role === "t" ? "t-home" : "s-home"}/>}
+        {screen === "notifs" && <Notifs go={go} back={role === "t" ? "t-home" : role === "p" ? "p-home" : "s-home"}/>}
         {screen === "class-code" && <ClassCode go={go}/>}
         {screen === "class" && <ClassDetails go={go}/>}
         {screen === "class-students" && <ClassStudents go={go}/>}
         {screen === "s-360" && <StudentProfile onBack={() => go("t-home")}/>}
         <ExtraFlow screen={screen} go={go} ctx={{
           verified, setVerified, role, dueOrders, settlements, requestSettlement, approvePending,
+          kids, kidId, setKidId, hasKids, setHasKids,
         }}/>
       </div>
     </IPhoneFrame>
