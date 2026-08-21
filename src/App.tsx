@@ -3,6 +3,8 @@ import {
   useEffect,
   useRef,
   useCallback,
+  createContext,
+  useContext,
   type ReactNode,
   type CSSProperties,
 } from "react"
@@ -219,14 +221,15 @@ function Card({ children, style: sx = {}, onClick }: { children: ReactNode; styl
   )
 }
 
-function Chip({ children, color = T.brand, filled }: { children: ReactNode; color?: string; filled?: boolean }) {
+function Chip({ children, color = T.brand, filled, onClick }: { children: ReactNode; color?: string; filled?: boolean; onClick?: () => void }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px",
       borderRadius: 100, background: filled ? color : color + "12",
       color: filled ? "white" : color, fontSize: 12, fontWeight: 700,
       whiteSpace: "nowrap", fontFamily: AR,
       border: filled ? "none" : `1px solid ${color}22`,
+      cursor: onClick ? "pointer" : undefined,
     }}>
       {children}
     </div>
@@ -739,6 +742,69 @@ function Switch({ on, onChange }: { on: boolean; onChange: () => void }) {
     }}>
       <span style={{ width: 24, height: 24, borderRadius: "50%", background: "white", display: "block", boxShadow: "0 1px 4px rgba(0,0,0,.2)" }}/>
     </button>
+  )
+}
+
+const ToastCtx = createContext<(msg: string) => void>(() => {})
+function useToast() { return useContext(ToastCtx) }
+
+function ToastHost({ children }: { children: ReactNode }) {
+  const [msg, setMsg] = useState<string | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const show = useCallback((m: string) => {
+    setMsg(m)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setMsg(null), 1800)
+  }, [])
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  return (
+    <ToastCtx.Provider value={show}>
+      {children}
+      {msg && (
+        <div style={{
+          position: "absolute", bottom: 88, left: 24, right: 24, zIndex: 200,
+          background: "rgba(26,31,54,0.94)", color: "white", borderRadius: 14,
+          padding: "12px 16px", fontFamily: AR, fontWeight: 700, fontSize: 14,
+          textAlign: "center", boxShadow: S.float, pointerEvents: "none",
+        }}>{msg}</div>
+      )}
+    </ToastCtx.Provider>
+  )
+}
+
+/** Interactive choice list with local selection state */
+function SelectList({ options, initial, onChange }: { options: string[]; initial?: string; onChange?: (v: string) => void }) {
+  const [sel, setSel] = useState(initial ?? options[0] ?? "")
+  return (
+    <>
+      {options.map((x) => (
+        <div key={x} style={{ marginBottom: 8 }}>
+          <Choice on={sel === x} onClick={() => { setSel(x); onChange?.(x) }}>{x}</Choice>
+        </div>
+      ))}
+    </>
+  )
+}
+
+/** Toggle row used on privacy / security settings */
+function SettingToggle({ label, initial = false }: { label: string; initial?: boolean }) {
+  const [on, setOn] = useState(initial)
+  return (
+    <Card style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ fontFamily: AR, fontWeight: 700 }}>{label}</div>
+        <Switch on={on} onChange={() => setOn((v) => !v)}/>
+      </div>
+    </Card>
+  )
+}
+
+function ActionCard({ label, onClick, sub }: { label: string; onClick: () => void; sub?: string }) {
+  return (
+    <Card style={{ marginBottom: 8 }} onClick={onClick}>
+      <div style={{ fontFamily: AR, fontWeight: 700 }}>{label}</div>
+      {sub && <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{sub}</div>}
+    </Card>
   )
 }
 
@@ -2048,6 +2114,7 @@ function Tasks({ go }: { go: Go }) {
 
 function Homework({ go }: { go: Go }) {
   const [step, setStep] = useState<"q"|"ask"|"done">("q")
+  const [ans, setAns] = useState("x = 4")
   if (step==="ask") return (
     <Page title="تسليم الواجب" onBack={() => setStep("q")} footer={
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -2056,6 +2123,7 @@ function Homework({ go }: { go: Go }) {
       </div>
     }>
       <h2 style={{ fontFamily: AR }}>هل أنت متأكد من تسليم الواجب؟</h2>
+      <p style={{ fontFamily: AR, color: T.muted }}>إجابتك المختارة: {ans}</p>
     </Page>
   )
   if (step==="done") return (
@@ -2067,7 +2135,7 @@ function Homework({ go }: { go: Go }) {
     <Page title="واجب المعادلات" onBack={() => go("tasks")} footer={<Btn onClick={() => setStep("ask")}>تسليم الواجب</Btn>}>
       <p style={{ fontFamily: AR, color: T.muted }}>أ/ محمد · 10 أسئلة</p>
       <h3 style={{ fontFamily: AR }}>1. حل 3x = 12</h3>
-      {["x = 4","x = 3","x = 6"].map((o) => <div key={o} style={{ marginBottom: 8 }}><Choice on={o==="x = 4"} onClick={() => {}}>{o}</Choice></div>)}
+      <SelectList options={["x = 4","x = 3","x = 6"]} initial={ans} onChange={setAns}/>
     </Page>
   )
 }
@@ -2327,6 +2395,8 @@ function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolea
             <MoreRow icon={Ic.sparkle} title="اشتراكي" badge="Plus" onClick={() => go("s-plans")}/>
             <MoreRow icon={Ic.robot} title="اشتراك AI" onClick={() => go("teac-ai")}/>
             <MoreRow icon={Ic.wallet} title="طرق الدفع" onClick={() => go("pay-methods")}/>
+            <MoreRow icon={Ic.sparkle} title="ادعُ أصحابك" sub="كود الدعوة والمكافآت" onClick={() => go("referral")}/>
+            <MoreRow icon={Ic.wallet} title="الكوبونات" onClick={() => go("coupon")}/>
             <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
           </MoreGroup>
           <MoreGroup title="الحساب">
@@ -2356,17 +2426,17 @@ function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolea
 function Notifs({ go, back }: { go: Go; back: Screen }) {
   const teacher = back === "t-home" || back === "t-account"
   const [items, setItems] = useState(teacher ? [
-    { id: 1, title: "واجب تم تسليمه", body: "أحمد علي سلّم واجب المعادلات", time: "٨:٠٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "📘", color: T.brand },
-    { id: 2, title: "حجز جديد", body: "سارة محمود حجزت حصة رياضيات الساعة ٦ م", time: "٧:٣٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "📅", color: T.teal },
-    { id: 3, title: "500 ج.م أصبحت متاحة للسحب", body: "بعد اكتمال دورة التسوية", time: "أمس · ٦:١٢ م", icon: "👛", color: T.emerald },
-    { id: 5, title: "تم بيع باقة جديدة 🎉", body: "باقة تأسيس الرياضيات · أحمد علي", time: "١٨ أغسطس", icon: "🎁", color: T.brand },
-    { id: 6, title: "تم تحويل 2,000 ج.م إلى حسابك", body: "مرجع WD-204", time: "١٢ أغسطس", icon: "🏦", color: T.teal },
-    { id: 4, title: "تحضير درس جاهز", body: "المعلم الذكي جهز أهداف الدرس القادم", time: "أمس · ١١:٠٠ ص", icon: "✨", color: T.ai },
+    { id: 1, title: "واجب تم تسليمه", body: "أحمد علي سلّم واجب المعادلات", time: "٨:٠٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "📘", color: T.brand, go: "hw" as Screen },
+    { id: 2, title: "حجز جديد", body: "سارة محمود حجزت حصة رياضيات الساعة ٦ م", time: "٧:٣٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "📅", color: T.teal, go: "bookings" as Screen },
+    { id: 3, title: "500 ج.م أصبحت متاحة للسحب", body: "بعد اكتمال دورة التسوية", time: "أمس · ٦:١٢ م", icon: "👛", color: T.emerald, go: "t-finance" as Screen },
+    { id: 5, title: "تم بيع باقة جديدة 🎉", body: "باقة تأسيس الرياضيات · أحمد علي", time: "١٨ أغسطس", icon: "🎁", color: T.brand, go: "pkg-sales" as Screen },
+    { id: 6, title: "تم تحويل 2,000 ج.م إلى حسابك", body: "مرجع WD-204", time: "١٢ أغسطس", icon: "🏦", color: T.teal, go: "withdraw-status" as Screen },
+    { id: 4, title: "تحضير درس جاهز", body: "المعلم الذكي جهز أهداف الدرس القادم", time: "أمس · ١١:٠٠ ص", icon: "✨", color: T.ai, go: "t-ai" as Screen },
   ] : [
-    { id: 1, title: "واجب جديد", body: "أ/ محمد أرسل واجب المعادلات", time: "٨:٠٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "📘", color: T.brand },
-    { id: 2, title: "تذكير بالحصة", body: "حصتك هتبدأ بعد ساعة", time: "٧:٣٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "⏰", color: T.teal },
-    { id: 3, title: "تم تأكيد الدفع", body: "تم خصم 180 ج.م لحصة الرياضيات", time: "أمس · ٦:١٢ م", icon: "💳", color: T.emerald },
-    { id: 4, title: "رصيد المعلم الذكي", body: "متبقي 20% من استخدام AI", time: "أمس · ١١:٠٠ ص", icon: "✨", color: T.ai },
+    { id: 1, title: "واجب جديد", body: "أ/ محمد أرسل واجب المعادلات", time: "٨:٠٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "📘", color: T.brand, go: "hw" as Screen },
+    { id: 2, title: "تذكير بالحصة", body: "حصتك هتبدأ بعد ساعة", time: "٧:٣٠ ص · ١٩ أغسطس ٢٠٢٦", icon: "⏰", color: T.teal, go: "bookings" as Screen },
+    { id: 3, title: "تم تأكيد الدفع", body: "تم خصم 180 ج.م لحصة الرياضيات", time: "أمس · ٦:١٢ م", icon: "💳", color: T.emerald, go: "tx" as Screen },
+    { id: 4, title: "رصيد المعلم الذكي", body: "متبقي 20% من استخدام AI", time: "أمس · ١١:٠٠ ص", icon: "✨", color: T.ai, go: "ai-usage" as Screen },
   ])
   return (
     <Page title="الإشعارات" onBack={() => go(back)} right={
@@ -2374,9 +2444,9 @@ function Notifs({ go, back }: { go: Go; back: Screen }) {
     }>
       {items.length === 0 && <p style={{ fontFamily: AR, color: T.muted, textAlign: "center" }}>مفيش إشعارات حالياً</p>}
       {items.map((n) => (
-        <div key={n.id} style={{
+        <div key={n.id} onClick={() => go(n.go)} style={{
           display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12,
-          padding: 14, borderRadius: 16, border: `1px solid ${T.border}`, background: T.card,
+          padding: 14, borderRadius: 16, border: `1px solid ${T.border}`, background: T.card, cursor: "pointer",
         }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
@@ -2389,7 +2459,7 @@ function Notifs({ go, back }: { go: Go; back: Screen }) {
             <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.6 }}>{n.body}</div>
             <div style={{ fontFamily: AR, fontSize: 11, color: T.muted, marginTop: 8 }}>{n.time}</div>
           </div>
-          <button onClick={() => setItems((p) => p.filter((x) => x.id !== n.id))} style={{
+          <button onClick={(e) => { e.stopPropagation(); setItems((p) => p.filter((x) => x.id !== n.id)) }} style={{
             background: "none", border: "none", color: T.rose, cursor: "pointer", fontSize: 16, padding: 4, flexShrink: 0,
           }}>🗑</button>
         </div>
@@ -2412,34 +2482,88 @@ function CreateClass({ go, onCreated }: { go: Go; onCreated: () => void }) {
 }
 
 function ClassCode({ go }: { go: Go }) {
+  const toast = useToast()
   return (
     <Page title="كود الفصل" onBack={() => go("class")} footer={<Btn onClick={() => go("class")}>اذهب للفصل</Btn>}>
       <div style={{ textAlign: "center", padding: "12px 0 20px" }}>
         <div style={{ fontSize: 28, fontWeight: 900, fontFamily: LAT, color: T.brand, letterSpacing: 2 }}>TEAC-8246</div>
         <p style={{ fontFamily: AR, color: T.sub }}>شارك الكود مع طلبتك علشان ينضموا للفصل.</p>
       </div>
-      <Btn variant="secondary">نسخ الكود</Btn>
+      <Btn variant="secondary" onClick={() => toast("تم نسخ الكود TEAC-8246")}>نسخ الكود</Btn>
       <div style={{ height: 8 }}/>
-      <Btn variant="ghost">مشاركة</Btn>
-      <Btn variant="ghost">دعوة طالب</Btn>
+      <Btn variant="ghost" onClick={() => toast("تم فتح خيارات المشاركة")}>مشاركة</Btn>
+      <Btn variant="ghost" onClick={() => go("class-students")}>دعوة طالب</Btn>
     </Page>
   )
 }
 
 function ClassDetails({ go }: { go: Go }) {
   const [tab, setTab] = useState("الطلاب")
+  const toast = useToast()
+  const content: Record<string, ReactNode> = {
+    "الطلاب": (
+      <>
+        <Card onClick={() => go("class-students")}><div style={{ fontFamily: AR, fontWeight: 700 }}>عرض قائمة الطلاب · 24 طالب</div></Card>
+        <div style={{ height: 8 }}/>
+        {["أحمد علي","سارة محمود","يوسف كمال"].map((n) => (
+          <Card key={n} style={{ marginBottom: 8 }} onClick={() => go("s-360")}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>{n}</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>اضغط لفتح ملف الطالب 360°</div>
+          </Card>
+        ))}
+      </>
+    ),
+    "المحتوى": (
+      <>
+        {["المعادلات الخطية","الدوال","الهندسة"].map((l) => (
+          <Card key={l} style={{ marginBottom: 8 }} onClick={() => go("lesson")}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>{l}</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>افتح الدرس للطلاب</div>
+          </Card>
+        ))}
+        <Btn onClick={() => go("t-ai")}>أضف محتوى بالذكاء الاصطناعي</Btn>
+      </>
+    ),
+    "الواجبات": (
+      <>
+        <Card style={{ marginBottom: 8 }} onClick={() => go("hw")}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>واجب المعادلات</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>18 مُسلَّم · 6 متبقي</div>
+        </Card>
+        <Btn onClick={() => go("t-ai")}>إنشاء واجب جديد</Btn>
+      </>
+    ),
+    "الاختبارات": (
+      <>
+        <Card style={{ marginBottom: 8 }} onClick={() => go("quiz")}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>اختبار قصير — الوحدة 1</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>متوسط 82%</div>
+        </Card>
+        <Btn onClick={() => go("t-ai")}>إنشاء اختبار</Btn>
+      </>
+    ),
+    "التحليلات": (
+      <>
+        <Card style={{ marginBottom: 8 }} onClick={() => go("s-360")}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>متوسط الفصل 74%</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>3 طلاب يحتاجون متابعة</div>
+        </Card>
+        <Btn variant="secondary" onClick={() => toast("تم تجهيز تقرير الفصل")}>تصدير التقرير</Btn>
+      </>
+    ),
+  }
   return (
     <Page title="رياضيات — أولى ثانوي" onBack={() => go("t-home")}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-        <Card><div style={{ fontFamily: AR }}>24 طالب</div></Card>
-        <Card><div style={{ fontFamily: AR }}>متوسط 74%</div></Card>
+        <Card onClick={() => { setTab("الطلاب"); go("class-students") }}><div style={{ fontFamily: AR }}>24 طالب</div></Card>
+        <Card onClick={() => setTab("التحليلات")}><div style={{ fontFamily: AR }}>متوسط 74%</div></Card>
       </div>
       <div className="scrollbar-hide" style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 12 }}>
         {["الطلاب","المحتوى","الواجبات","الاختبارات","التحليلات"].map((t) => (
-          <button key={t} onClick={() => { setTab(t); if (t==="الطلاب") go("class-students") }} style={{ padding: "8px 12px", borderRadius: 100, border: "none", whiteSpace: "nowrap", background: tab===t ? T.brand : T.gray, color: tab===t ? "white" : T.sub, fontFamily: AR, fontWeight: 700 }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "8px 12px", borderRadius: 100, border: "none", whiteSpace: "nowrap", background: tab===t ? T.brand : T.gray, color: tab===t ? "white" : T.sub, fontFamily: AR, fontWeight: 700, cursor: "pointer" }}>{t}</button>
         ))}
       </div>
-      <Card onClick={() => go("class-students")}><div style={{ fontFamily: AR, fontWeight: 700 }}>عرض قائمة الطلاب</div></Card>
+      {content[tab]}
     </Page>
   )
 }
@@ -2546,9 +2670,23 @@ function Chats({ go, role }: { go: Go; role: Role | null }) {
 }
 
 function ChatThread({ go, role }: { go: Go; role: Role | null }) {
+  const toast = useToast()
   const [rec, setRec] = useState(false)
   const [speed, setSpeed] = useState("1x")
+  const [playing, setPlaying] = useState(false)
+  const [draft, setDraft] = useState("")
+  const [msgs, setMsgs] = useState([
+    { id: 1, mine: false, text: "أقدر أراجع المعادلات قبل الحصة؟", t: "10:21 م" },
+    { id: 2, mine: true, text: "تمام يا أحمد، هنراجع الجزء ده في الحصة.", t: "10:42 م" },
+  ])
   const mine = role !== "t"
+  const send = () => {
+    const t = draft.trim()
+    if (!t) { toast("اكتب رسالة أولاً"); return }
+    setMsgs((p) => [...p, { id: Date.now(), mine: true, text: t, t: "الآن" }])
+    setDraft("")
+    toast("تم إرسال الرسالة")
+  }
   return (
     <Page title="أ/ محمد أحمد" onBack={() => go("chats")} pad={false} right={
       <div style={{ display: "flex", gap: 6 }}>
@@ -2569,18 +2707,17 @@ function ChatThread({ go, role }: { go: Go; role: Role | null }) {
           <div style={{ fontFamily: AR, fontWeight: 800, fontSize: 13 }}>تم حجز حصة يوم السبت الساعة 6:00 م</div>
           <Btn variant="ghost" onClick={() => go("bookings")}>عرض الحجز</Btn>
         </Card>
-        <div style={{ display: "flex", justifyContent: mine ? "flex-start" : "flex-end", marginBottom: 8 }}>
-          <div style={{ maxWidth: "78%", background: T.gray, borderRadius: 16, padding: "10px 12px" }}>
-            <div style={{ fontFamily: AR, fontSize: 14 }}>أقدر أراجع المعادلات قبل الحصة؟</div>
-            <div style={{ fontFamily: AR, fontSize: 10, color: T.muted, marginTop: 4 }}>10:21 م · ✓✓</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", marginBottom: 8 }}>
-          <div style={{ maxWidth: "78%", background: T.brand, color: "white", borderRadius: 16, padding: "10px 12px" }}>
-            <div style={{ fontFamily: AR, fontSize: 14 }}>تمام يا أحمد، هنراجع الجزء ده في الحصة.</div>
-            <div style={{ fontFamily: AR, fontSize: 10, opacity: 0.8, marginTop: 4 }}>10:42 م · مقروءة</div>
-          </div>
-        </div>
+        {msgs.map((m) => {
+          const alignMine = m.mine ? mine : !mine
+          return (
+            <div key={m.id} style={{ display: "flex", justifyContent: alignMine ? "flex-end" : "flex-start", marginBottom: 8 }}>
+              <div style={{ maxWidth: "78%", background: m.mine ? T.brand : T.gray, color: m.mine ? "white" : T.text, borderRadius: 16, padding: "10px 12px" }}>
+                <div style={{ fontFamily: AR, fontSize: 14 }}>{m.text}</div>
+                <div style={{ fontFamily: AR, fontSize: 10, opacity: m.mine ? 0.8 : 1, color: m.mine ? undefined : T.muted, marginTop: 4 }}>{m.t}</div>
+              </div>
+            </div>
+          )
+        })}
         <Card style={{ marginBottom: 8 }} onClick={() => go("chat-image")}>
           <div style={{ height: 120, borderRadius: 12, background: `linear-gradient(135deg, ${T.brandLight}, ${T.aiLight})`, marginBottom: 6 }}/>
           <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>صورة السبورة · 10:44 م</div>
@@ -2588,13 +2725,13 @@ function ChatThread({ go, role }: { go: Go; role: Role | null }) {
         <Card style={{ marginBottom: 8 }}>
           <div style={{ fontFamily: AR, fontWeight: 800 }}>📄 شرح المعادلات.pdf</div>
           <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, margin: "4px 0 8px" }}>2.4 MB</div>
-          <Btn variant="secondary">فتح الملف</Btn>
+          <Btn variant="secondary" onClick={() => { toast("جاري فتح الملف"); go("vid-files") }}>فتح الملف</Btn>
         </Card>
         <Card style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button style={{ width: 36, height: 36, borderRadius: 18, border: "none", background: T.brand, color: "white" }}>▶</button>
+            <button onClick={() => { setPlaying((p) => !p); toast(playing ? "تم إيقاف الصوت" : "تشغيل الرسالة الصوتية") }} style={{ width: 36, height: 36, borderRadius: 18, border: "none", background: T.brand, color: "white", cursor: "pointer" }}>{playing ? "❚❚" : "▶"}</button>
             <div style={{ flex: 1, height: 28, borderRadius: 8, background: `repeating-linear-gradient(90deg, ${T.brand} 0 3px, transparent 3px 7px)` }}/>
-            <button onClick={() => setSpeed(speed==="1x"?"1.5x":speed==="1.5x"?"2x":"1x")} style={{ border: "none", background: T.gray, borderRadius: 8, padding: "4px 8px", fontFamily: AR, fontWeight: 800 }}>{speed}</button>
+            <button onClick={() => setSpeed(speed==="1x"?"1.5x":speed==="1.5x"?"2x":"1x")} style={{ border: "none", background: T.gray, borderRadius: 8, padding: "4px 8px", fontFamily: AR, fontWeight: 800, cursor: "pointer" }}>{speed}</button>
             <span style={{ fontFamily: LAT, fontSize: 12, color: T.muted }}>0:12</span>
           </div>
         </Card>
@@ -2609,16 +2746,16 @@ function ChatThread({ go, role }: { go: Go; role: Role | null }) {
             <span style={{ fontFamily: AR, color: T.rose, fontWeight: 800 }}>جاري التسجيل... 0:08</span>
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="ghost" onClick={() => setRec(false)}>إلغاء</Btn>
-              <Btn onClick={() => setRec(false)}>إرسال</Btn>
+              <Btn onClick={() => { setRec(false); setMsgs((p) => [...p, { id: Date.now(), mine: true, text: "🎤 رسالة صوتية", t: "الآن" }]); toast("تم إرسال الرسالة الصوتية") }}>إرسال</Btn>
             </div>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={() => go("vid-files")} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>📎</button>
-            <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>📷</button>
-            <div style={{ flex: 1 }}><Input placeholder="اكتب رسالة..."/></div>
+            <button onClick={() => go("chat-image")} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>📷</button>
+            <div style={{ flex: 1 }}><Input placeholder="اكتب رسالة..." value={draft} onChange={setDraft}/></div>
             <button onClick={() => setRec(true)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>🎤</button>
-            <button style={{ width: 40, height: 40, borderRadius: 14, border: "none", background: T.brand, color: "white", fontWeight: 800 }}>↑</button>
+            <button onClick={send} style={{ width: 40, height: 40, borderRadius: 14, border: "none", background: T.brand, color: "white", fontWeight: 800, cursor: "pointer" }}>↑</button>
           </div>
         )}
       </div>
@@ -2932,6 +3069,60 @@ function ParentNotifs({ go }: { go: Go }) {
   )
 }
 
+function ParentChat({ go }: { go: Go }) {
+  const toast = useToast()
+  const [draft, setDraft] = useState("")
+  const [msgs, setMsgs] = useState(["ممكن نأكد حصة السبت لأحمد؟"])
+  return (
+    <Page title="أ/ محمد أحمد" onBack={() => go("p-teachers")} pad={false} footer={
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}><Input placeholder="اكتب رسالة لولي الأمر..." value={draft} onChange={setDraft}/></div>
+        <button onClick={() => {
+          if (!draft.trim()) { toast("اكتب رسالة أولاً"); return }
+          setMsgs((p) => [...p, draft.trim()]); setDraft(""); toast("تم الإرسال")
+        }} style={{ width: 48, borderRadius: 14, border: "none", background: T.brand, color: "white", fontWeight: 800, cursor: "pointer" }}>↑</button>
+      </div>
+    }>
+      <div style={{ padding: "8px 16px", background: T.card, borderBottom: `0.5px solid ${T.border}` }}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>أ/ محمد أحمد</div>
+        <div style={{ fontFamily: AR, fontSize: 12, color: T.brand }}>بخصوص: أحمد محمد · محادثة ولي أمر منفصلة عن شات الطالب</div>
+      </div>
+      <div style={{ padding: 16 }}>
+        {msgs.map((m, i) => (
+          <Card key={i} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR, fontSize: 14 }}>{m}</div></Card>
+        ))}
+        <p style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>نص · صور · PDF · صوت — المكالمات حسب سياسة المنصة.</p>
+        <Btn variant="ghost" onClick={() => go("call-in")}>بدء مكالمة</Btn>
+      </div>
+    </Page>
+  )
+}
+
+function ParentBookings({ go }: { go: Go }) {
+  const [tab, setTab] = useState("القادمة")
+  const rows: Record<string, { t: string; s: string; go: Screen }[]> = {
+    "القادمة": [{ t: "أحمد · رياضيات", s: "أ/ محمد · السبت 6:00 م · 350 ج.م", go: "session" }],
+    "تحتاج موافقة": [{ t: "أحمد يريد حجز حصة", s: "بانتظار موافقتك", go: "p-approve-book" }],
+    "مكتملة": [{ t: "أحمد · فيزياء", s: "اكتملت · قيّم المدرس", go: "review" }],
+    "ملغاة": [{ t: "سارة · رياضيات", s: "أُلغيت · تم الاسترداد", go: "p-tx" }],
+  }
+  return (
+    <Page title="الحجوزات" onBack={() => go("p-home")}>
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12 }}>
+        {Object.keys(rows).map((x) => (
+          <Chip key={x} filled={tab===x} onClick={() => setTab(x)}>{x}</Chip>
+        ))}
+      </div>
+      {(rows[tab] || []).map((r) => (
+        <Card key={r.t} style={{ marginBottom: 8 }} onClick={() => go(r.go)}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>{r.t}</div>
+          <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>{r.s}</div>
+        </Card>
+      ))}
+    </Page>
+  )
+}
+
 function ParentFlow({ screen, go, ctx }: {
   screen: Screen
   go: Go
@@ -2945,6 +3136,7 @@ function ParentFlow({ screen, go, ctx }: {
     verified?: boolean
   }
 }) {
+  const toast = useToast()
   const kid = ctx.kids.find((k) => k.id === ctx.kidId) ?? ctx.kids[0]
   const acc: Screen = ctx.role === "p" ? "p-more" : ctx.role === "t" ? "t-account" : "s-account"
 
@@ -3099,12 +3291,12 @@ function ParentFlow({ screen, go, ctx }: {
           <div style={{ fontFamily: AR, fontSize: 13 }}>{k.plan} · نشط</div>
           <div style={{ fontFamily: AR, fontSize: 13 }}>{k.ai} · {k.ai.includes("Plus") ? "نشط" : "مجاني"}</div>
           {k.id === "ahmed" && <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>التجديد: 1 سبتمبر</div>}
-          <Btn variant="ghost">إدارة الاشتراك</Btn>
+          <Btn variant="ghost" onClick={() => go("p-sub-manage")}>إدارة الاشتراك</Btn>
         </Card>
       ))}
-      <Card style={{ background: T.gray, boxShadow: "none" }}>
+      <Card style={{ background: T.gray, boxShadow: "none" }} onClick={() => go("s-plans")}>
         <div style={{ fontFamily: AR, fontWeight: 900 }}>Teac Family</div>
-        <p style={{ fontFamily: AR, fontSize: 13, color: T.muted, margin: "6px 0 0" }}>اشتراك واحد لإدارة مزايا أكتر من طالب. قريباً — مش مفعّل حالياً.</p>
+        <p style={{ fontFamily: AR, fontSize: 13, color: T.muted, margin: "6px 0 0" }}>اشتراك واحد لإدارة مزايا أكتر من طالب. اضغط لمعرفة الخطط الحالية — Family قريباً.</p>
       </Card>
     </Page>
   )
@@ -3130,36 +3322,19 @@ function ParentFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "p-bookings") return (
-    <Page title="الحجوزات" onBack={() => go("p-home")}>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12 }}>
-        {["القادمة","تحتاج موافقة","مكتملة","ملغاة"].map((x,i) => <Chip key={x} filled={i===0}>{x}</Chip>)}
-      </div>
-      <Card onClick={() => go("p-approve-book")}>
-        <div style={{ fontFamily: AR, fontWeight: 800 }}>أحمد · رياضيات</div>
-        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>أ/ محمد · السبت 6:00 م · 350 ج.م · مدفوع</div>
-      </Card>
-    </Page>
+    <ParentBookings go={go}/>
   )
   if (screen === "p-teachers") return (
     <Page title="المدرسون" onBack={() => go("p-more")}>
       <Card onClick={() => go("p-chat")}>
         <div style={{ fontFamily: AR, fontWeight: 800 }}>أ/ محمد أحمد</div>
         <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>بخصوص: أحمد محمد · رياضيات</div>
-        <Btn variant="ghost">تواصل مع المدرس</Btn>
+        <Btn variant="ghost" onClick={() => go("p-chat")}>تواصل مع المدرس</Btn>
       </Card>
     </Page>
   )
   if (screen === "p-chat") return (
-    <Page title="أ/ محمد أحمد" onBack={() => go("p-teachers")} pad={false}>
-      <div style={{ padding: "8px 16px", background: T.card, borderBottom: `0.5px solid ${T.border}` }}>
-        <div style={{ fontFamily: AR, fontWeight: 800 }}>أ/ محمد أحمد</div>
-        <div style={{ fontFamily: AR, fontSize: 12, color: T.brand }}>بخصوص: أحمد محمد · محادثة ولي أمر منفصلة عن شات الطالب</div>
-      </div>
-      <div style={{ padding: 16 }}>
-        <Card><div style={{ fontFamily: AR, fontSize: 14 }}>ممكن نأكد حصة السبت لأحمد؟</div></Card>
-        <p style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>نص · صور · PDF · صوت — المكالمات حسب سياسة المنصة.</p>
-      </div>
-    </Page>
+    <ParentChat go={go}/>
   )
   if (screen === "p-approve") return (
     <Page title="الموافقات" onBack={() => go("p-home")}>
@@ -3205,17 +3380,44 @@ function ParentFlow({ screen, go, ctx }: {
   )
   if (screen === "devices") return (
     <Page title="الأجهزة" onBack={() => go(acc)}>
-      {["iPhone 15 · القاهرة · الآن","Chrome · ويندوز · أمس"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+      {[
+        { n: "iPhone 15 · القاهرة · الآن", cur: true },
+        { n: "Chrome · ويندوز · أمس", cur: false },
+      ].map((x) => (
+        <Card key={x.n} style={{ marginBottom: 8 }}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>{x.n}</div>
+          {x.cur ? <Chip color={T.emerald}>هذا الجهاز</Chip> : (
+            <Btn variant="ghost" onClick={() => toast(`تم إنهاء الجلسة: ${x.n}`)}>إنهاء الجلسة</Btn>
+          )}
+        </Card>
+      ))}
+      <Btn variant="secondary" onClick={() => { toast("تم تسجيل الخروج من كل الأجهزة الأخرى"); go("login") }}>تسجيل الخروج من الكل</Btn>
     </Page>
   )
   if (screen === "help-center") return (
     <Page title="مركز المساعدة" onBack={() => go(acc)}>
-      {["الحساب","الدفع","أولادي","الحجوزات"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+      {[
+        { l: "الحساب", s: "account-settings" as Screen },
+        { l: "الدفع", s: "pay-methods" as Screen },
+        { l: "أولادي", s: "p-kids" as Screen },
+        { l: "الحجوزات", s: "p-bookings" as Screen },
+      ].map((x) => (
+        <Card key={x.l} style={{ marginBottom: 8 }} onClick={() => go(x.s)}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x.l}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>افتح المقالات والإجراءات</div>
+        </Card>
+      ))}
+      <Btn variant="secondary" onClick={() => go("support")}>تواصل مع الدعم</Btn>
     </Page>
   )
   if (screen === "policies") return (
     <Page title="الشروط والسياسات" onBack={() => go(acc)}>
-      {["شروط الاستخدام","سياسة الخصوصية","سياسة الاسترداد"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+      {["شروط الاستخدام","سياسة الخصوصية","سياسة الاسترداد"].map((x) => (
+        <Card key={x} style={{ marginBottom: 8 }} onClick={() => toast(`تم فتح: ${x}`)}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>اضغط للقراءة</div>
+        </Card>
+      ))}
     </Page>
   )
   if (screen === "account-settings") return (
@@ -3244,6 +3446,13 @@ function ExtraFlow({ screen, go, ctx }: {
     setHasKids: (v: boolean) => void
   }
 }) {
+  const toast = useToast()
+  const [autoRenew, setAutoRenew] = useState(true)
+  const [handUp, setHandUp] = useState(false)
+  const [callOpts, setCallOpts] = useState<Record<string, boolean>>({ "كتم": false, "سماعة": true, "بلوتوث": false })
+  const [liveTab, setLiveTab] = useState("محادثة")
+  const [ratings, setRatings] = useState<Record<string, number>>({ "الشرح": 5, "الالتزام": 5, "التواصل": 5 })
+
   if (screen === "s-approve-sent") return (
     <Page title="طلب الموافقة" onBack={() => go("s-home")} footer={<Btn onClick={() => go("s-home")}>العودة</Btn>}>
       <SuccessBlock title="تم إرسال طلب موافقة لولي الأمر" sub="باقة رياضيات — 2,650 ج.م · هتوصلك نتيجة الموافقة." cta="العودة" onCta={() => go("s-home")}/>
@@ -3259,8 +3468,8 @@ function ExtraFlow({ screen, go, ctx }: {
   if (screen === "chat-image") return (
     <Page title="الصورة" onBack={() => go("chat")} footer={
       <div style={{ display: "flex", gap: 8 }}>
-        <Btn variant="secondary">تحميل</Btn>
-        <Btn variant="ghost">مشاركة</Btn>
+        <Btn variant="secondary" onClick={() => toast("تم حفظ الصورة")}>تحميل</Btn>
+        <Btn variant="ghost" onClick={() => toast("تم فتح المشاركة")}>مشاركة</Btn>
       </div>
     }>
       <div style={{ height: 420, borderRadius: 20, background: `linear-gradient(145deg, ${T.brandLight}, ${T.aiLight})` }}/>
@@ -3295,7 +3504,11 @@ function ExtraFlow({ screen, go, ctx }: {
         <p style={{ fontFamily: LAT, color: T.muted }}>12:08</p>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 20 }}>
-        {["كتم","سماعة","بلوتوث"].map((x) => <Card key={x}><div style={{ fontFamily: AR, textAlign: "center", fontWeight: 700 }}>{x}</div></Card>)}
+        {["كتم","سماعة","بلوتوث"].map((x) => (
+          <Card key={x} onClick={() => setCallOpts((p) => ({ ...p, [x]: !p[x] }))}>
+            <div style={{ fontFamily: AR, textAlign: "center", fontWeight: 700, color: callOpts[x] ? T.brand : T.text }}>{x}{callOpts[x] ? " ✓" : ""}</div>
+          </Card>
+        ))}
       </div>
       <div style={{ height: 10 }}/>
       <Btn variant="secondary" onClick={() => go("chat")}>فتح المحادثة</Btn>
@@ -3318,18 +3531,22 @@ function ExtraFlow({ screen, go, ctx }: {
     <Page title="حصة فيديو" onBack={() => go("chat")} pad={false}>
       <div style={{ height: 360, background: T.gradBrand, position: "relative", color: "white", display: "flex", alignItems: "flex-end", padding: 16 }}>
         <div style={{ position: "absolute", top: 16, left: 16, width: 90, height: 120, borderRadius: 12, background: "rgba(255,255,255,0.25)" }}/>
-        <div style={{ fontFamily: AR }}>أ/ محمد أحمد · الاتصال ضعيف</div>
+        <div style={{ fontFamily: AR }}>أ/ محمد أحمد · الاتصال ضعيف{handUp ? " · يدك مرفوعة ✋" : ""}</div>
       </div>
       <div style={{ padding: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 10 }}>
-          {["مايك","كاميرا","قلب","سماعة"].map((x) => <Card key={x}><div style={{ fontFamily: AR, fontSize: 12, textAlign: "center" }}>{x}</div></Card>)}
+          {["مايك","كاميرا","قلب","سماعة"].map((x) => (
+            <Card key={x} onClick={() => toast(x === "قلب" ? "تم إرسال تفاعل ❤️" : `تم تبديل ${x}`)}>
+              <div style={{ fontFamily: AR, fontSize: 12, textAlign: "center", fontWeight: 700 }}>{x}</div>
+            </Card>
+          ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <Btn variant="secondary" onClick={() => go("chat")}>محادثة</Btn>
           <Btn variant="ghost" onClick={() => go("vid-files")}>محتوى الحصة</Btn>
         </div>
         <div style={{ height: 8 }}/>
-        <Btn variant="secondary">رفع اليد ✋</Btn>
+        <Btn variant="secondary" onClick={() => { setHandUp((v) => !v); toast(handUp ? "تم إنزال اليد" : "تم رفع اليد ✋") }}>{handUp ? "إنزال اليد" : "رفع اليد ✋"}</Btn>
         <div style={{ height: 8 }}/>
         <button onClick={() => go("chat")} style={{ width: "100%", minHeight: 52, borderRadius: 16, border: "none", background: T.rose, color: "white", fontFamily: AR, fontWeight: 800 }}>إنهاء</button>
       </div>
@@ -3337,8 +3554,17 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "vid-files") return (
     <Page title="محتوى الحصة" onBack={() => go("vid-call")}>
-      {["شرح المعادلات.pdf","صورة السبورة","واجب الحصة","رابط الدرس","السبورة"].map((x) => (
-        <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR, fontWeight: 700 }}>{x}</div></Card>
+      {[
+        { l: "شرح المعادلات.pdf", s: "lesson" as Screen },
+        { l: "صورة السبورة", s: "chat-image" as Screen },
+        { l: "واجب الحصة", s: "hw" as Screen },
+        { l: "رابط الدرس", s: "lesson" as Screen },
+        { l: "السبورة", s: "lesson" as Screen },
+      ].map((x) => (
+        <Card key={x.l} style={{ marginBottom: 8 }} onClick={() => go(x.s)}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x.l}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>اضغط للفتح</div>
+        </Card>
       ))}
     </Page>
   )
@@ -3363,9 +3589,10 @@ function ExtraFlow({ screen, go, ctx }: {
         <Input placeholder="مدة متوقعة" value="90 دقيقة"/>
       </div>
       <div style={{ height: 10 }}/>
-      {["مجاني","ضمن باقة","مدفوع"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="مدفوع"} onClick={() => {}}>{x}</Choice></div>)}
+      <p style={{ fontFamily: AR, fontWeight: 700 }}>نوع البث</p>
+      <SelectList options={["مجاني","ضمن باقة","مدفوع"]} initial="مدفوع"/>
       <p style={{ fontFamily: AR, fontWeight: 700 }}>الجمهور</p>
-      {["فصل معين","طلاب محددين","جميع متابعي المدرس","عام"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="فصل معين"} onClick={() => {}}>{x}</Choice></div>)}
+      <SelectList options={["فصل معين","طلاب محددين","جميع متابعي المدرس","عام"]} initial="فصل معين"/>
     </Page>
   )
   if (screen === "live-price") return (
@@ -3407,9 +3634,9 @@ function ExtraFlow({ screen, go, ctx }: {
     <Page title="غرفة الانتظار" onBack={() => go("live-detail")} footer={<Btn onClick={() => go("live")}>دخول البث</Btn>}>
       <h2 style={{ fontFamily: AR }}>البث هيبدأ بعد 08:32</h2>
       <p style={{ fontFamily: AR, color: T.sub }}>أ/ محمد · مراجعة ليلة الامتحان · 23 في الانتظار</p>
-      <Btn variant="secondary">اختبر الصوت</Btn>
+      <Btn variant="secondary" onClick={() => toast("الصوت شغال ✓")}>اختبر الصوت</Btn>
       <div style={{ height: 8 }}/>
-      <Btn variant="secondary">اختبر الكاميرا</Btn>
+      <Btn variant="secondary" onClick={() => toast("الكاميرا جاهزة ✓")}>اختبر الكاميرا</Btn>
       <div style={{ height: 8 }}/>
       <Btn variant="ghost" onClick={() => go("chat")}>فتح المحادثة</Btn>
     </Page>
@@ -3423,15 +3650,19 @@ function ExtraFlow({ screen, go, ctx }: {
       <div style={{ padding: 16 }}>
         <p style={{ fontFamily: AR, color: T.amber, fontWeight: 800 }}>يتم تسجيل البث</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          {[["محادثة","live"],["الأسئلة","live"],["رفع اليد","live"]].map(([l]) => (
-            <Chip key={l}>{l}</Chip>
+          {["محادثة","الأسئلة","رفع اليد"].map((l) => (
+            <button key={l} onClick={() => { setLiveTab(l); if (l === "رفع اليد") { setHandUp(true); toast("تم رفع يدك") } }} style={{
+              padding: "6px 12px", borderRadius: 100, border: "none", cursor: "pointer",
+              background: liveTab===l ? T.brand : T.gray, color: liveTab===l ? "white" : T.sub, fontFamily: AR, fontWeight: 700, fontSize: 12,
+            }}>{l}</button>
           ))}
         </div>
-        <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>أحمد: الجزئية دي هتيجي في الامتحان؟</div></Card>
+        {liveTab === "محادثة" && <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>أحمد: الجزئية دي هتيجي في الامتحان؟</div></Card>}
+        {liveTab === "الأسئلة" && <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>س: ما الفرق بين المعادلة والمتباينة؟</div></Card>}
         <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR, fontWeight: 800 }}>✋ أحمد يريد المشاركة</div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <Chip>السماح بالصوت</Chip>
-            <Chip>صوت وكاميرا</Chip>
+            <Chip onClick={() => toast("تم السماح بالصوت")}>السماح بالصوت</Chip>
+            <Chip onClick={() => toast("تم تفعيل صوت وكاميرا")}>صوت وكاميرا</Chip>
           </div>
         </Card>
         <Card><div style={{ fontFamily: AR }}>الحضور: مسجّل 50 · انضم 43 · غاب 7</div></Card>
@@ -3456,7 +3687,7 @@ function ExtraFlow({ screen, go, ctx }: {
           <h2 style={{ fontFamily: AR }}>انتهى البث</h2>
           <Btn onClick={() => go("review")}>تقييم الحصة</Btn>
           <div style={{ height: 8 }}/>
-          <Btn variant="secondary">مشاهدة التسجيل</Btn>
+          <Btn variant="secondary" onClick={() => { toast("جاري تشغيل التسجيل"); go("lesson") }}>مشاهدة التسجيل</Btn>
           <div style={{ height: 8 }}/>
           <Btn variant="ghost" onClick={() => go("ai-chat")}>اسأل المعلم الذكي عن الدرس</Btn>
         </>
@@ -3600,7 +3831,7 @@ function ExtraFlow({ screen, go, ctx }: {
           <Card key={k}><div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{k}</div><div style={{ fontFamily: LAT, fontWeight: 800 }}>{v}</div></Card>
         ))}
       </div>
-      <Btn variant="secondary">تعديل</Btn>
+      <Btn variant="secondary" onClick={() => go("pkg-info")}>تعديل</Btn>
     </Page>
   )
   if (screen === "plan-compare") return (
@@ -3625,13 +3856,23 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "teac-ai") return (
     <Page title={ctx.role==="t"?"مساعد المدرس الذكي":"المعلم الذكي"} onBack={() => go(ctx.role==="t"?"t-account":"s-account")} footer={<Btn onClick={() => go("ai-addon")}>ترقية AI</Btn>}>
-      <Card style={{ marginBottom: 12 }}>
+      <Card style={{ marginBottom: 12 }} onClick={() => go("ai-usage")}>
         <div style={{ fontFamily: AR, fontWeight: 800 }}>رصيد استخدام AI</div>
         <div style={{ fontFamily: AR, margin: "8px 0" }}>65% مستخدم</div>
         <ProgressBar pct={65} color={T.ai}/>
       </Card>
-      {["محادثة AI","تحليل صورة السؤال","تحليل PDF","إنشاء اختبار","تحضير درس","تحليل الأداء"].map((x) => (
-        <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>
+      {[
+        { l: "محادثة AI", s: (ctx.role==="t" ? "t-ai" : "ai-chat") as Screen },
+        { l: "تحليل صورة السؤال", s: "ai-chat" as Screen },
+        { l: "تحليل PDF", s: "ai-chat" as Screen },
+        { l: "إنشاء اختبار", s: "t-ai" as Screen },
+        { l: "تحضير درس", s: "t-ai" as Screen },
+        { l: "تحليل الأداء", s: "s-360" as Screen },
+      ].map((x) => (
+        <Card key={x.l} style={{ marginBottom: 8 }} onClick={() => go(x.s)}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x.l}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>اضغط للبدء</div>
+        </Card>
       ))}
       <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>لو عندك اشتراك Teac، جزء من AI ممكن يكون مشمول. الترقية تزود الرصيد حسب السياسة.</p>
     </Page>
@@ -3715,7 +3956,12 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "tx-detail") return (
-    <Page title="تفاصيل المعاملة" onBack={() => go(ctx.role==="t"?"t-tx":"tx")} footer={<Btn variant="secondary">تحميل الإيصال</Btn>}>
+    <Page title="تفاصيل المعاملة" onBack={() => go(ctx.role==="t"?"t-tx":"tx")} footer={
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Btn variant="secondary" onClick={() => toast("تم تحميل الإيصال PDF")}>تحميل الإيصال</Btn>
+        <Btn variant="ghost" onClick={() => go("refund")}>طلب استرداد</Btn>
+      </div>
+    }>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ fontFamily: AR, fontWeight: 800 }}>صافي أرباح المدرس</span>
         <MoneyAmt v="408 ج.م" kind="in"/>
@@ -3746,8 +3992,8 @@ function ExtraFlow({ screen, go, ctx }: {
   if (screen === "t-wallet") return <TeacherFinance go={go}/>
   if (screen === "withdraw") return <Withdraw go={go} verified={ctx.verified}/>
   if (screen === "payout-add") return (
-    <Page title="إضافة وسيلة سحب" onBack={() => go("withdraw")} footer={<Btn onClick={() => go("withdraw")}>حفظ</Btn>}>
-      {["حساب بنكي","محفظة إلكترونية"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="حساب بنكي"} onClick={() => {}}>{x}</Choice></div>)}
+    <Page title="إضافة وسيلة سحب" onBack={() => go("withdraw")} footer={<Btn onClick={() => { toast("تم حفظ وسيلة السحب"); go("withdraw") }}>حفظ</Btn>}>
+      <SelectList options={["حساب بنكي","محفظة إلكترونية"]} initial="حساب بنكي"/>
       <Input placeholder="اسم البنك" value="بنك مصر"/>
       <div style={{ height: 8 }}/>
       <Input placeholder="اسم صاحب الحساب" value="محمد أحمد حسن"/>
@@ -3766,7 +4012,7 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "reports") return (
-    <Page title="تقرير أغسطس" onBack={() => go("t-finance")} footer={<Btn variant="secondary">تحميل التقرير</Btn>}>
+    <Page title="تقرير أغسطس" onBack={() => go("t-finance")} footer={<Btn variant="secondary" onClick={() => toast("تم تحميل تقرير أغسطس PDF")}>تحميل التقرير</Btn>}>
       {[
         ["إجمالي المبيعات","9,400 ج.م"],
         ["خصومات","220 ج.م"],
@@ -3795,7 +4041,9 @@ function ExtraFlow({ screen, go, ctx }: {
       <Btn onClick={() => go("t-plans")}>ترقية الخطة</Btn>
       <div style={{ height: 8 }}/>
       <Btn variant="secondary" onClick={() => go("sub-usage")}>استخدام الاشتراك</Btn>
-      <Btn variant="ghost">إيقاف التجديد التلقائي</Btn>
+      <Btn variant="ghost" onClick={() => { setAutoRenew((v) => !v); toast(autoRenew ? "تم إيقاف التجديد التلقائي" : "تم تفعيل التجديد التلقائي") }}>
+        {autoRenew ? "إيقاف التجديد التلقائي" : "تفعيل التجديد التلقائي"}
+      </Btn>
     </Page>
   )
   if (screen === "sub-fail") return (
@@ -3827,7 +4075,7 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "ai-addon") return (
     <Page title="إضافة رصيد AI" onBack={() => go("ai-usage")} footer={<Btn onClick={() => go("checkout")}>شراء رصيد استخدام إضافي</Btn>}>
-      {["حزمة خفيفة","حزمة متوسطة","حزمة مكثفة"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="حزمة متوسطة"} onClick={() => {}}>{x}</Choice></div>)}
+      <SelectList options={["حزمة خفيفة","حزمة متوسطة","حزمة مكثفة"]} initial="حزمة متوسطة"/>
     </Page>
   )
   if (screen === "pkg-create") return (
@@ -3853,15 +4101,32 @@ function ExtraFlow({ screen, go, ctx }: {
     <Page title="ادعُ أصحابك" onBack={() => go("s-account")}>
       <div style={{ textAlign: "center", fontFamily: LAT, fontSize: 22, fontWeight: 900, color: T.brand, margin: "12px 0" }}>TEAC-AHMED</div>
       <p style={{ fontFamily: AR, color: T.sub }}>اكسب مكافآت داخل Teac Teacher لما صديقك يسجل ويحقق شروط العرض.</p>
-      <Btn>نسخ الكود</Btn>
+      <Btn onClick={() => toast("تم نسخ كود الدعوة TEAC-AHMED")}>نسخ الكود</Btn>
       <div style={{ height: 8 }}/>
-      <Card><div style={{ fontFamily: AR }}>دعوات: 4 · ناجحة: 2 · مكافآت: 80 ج.م رصيد مكافآت</div></Card>
+      <Btn variant="secondary" onClick={() => toast("تم فتح المشاركة")}>مشاركة الرابط</Btn>
+      <div style={{ height: 8 }}/>
+      <Card onClick={() => go("tx")}><div style={{ fontFamily: AR }}>دعوات: 4 · ناجحة: 2 · مكافآت: 80 ج.م رصيد مكافآت</div></Card>
+    </Page>
+  )
+  if (screen === "coupon") return (
+    <Page title="الكوبونات" onBack={() => go("s-wallet")} footer={<Btn onClick={() => { toast("تم تطبيق الكوبون TEAC20"); go("checkout") }}>تطبيق الكوبون</Btn>}>
+      <Input placeholder="أدخل كود الخصم" value="TEAC20"/>
+      <div style={{ height: 12 }}/>
+      <SelectList options={["خصم 20 ج.م على الحصة","خصم 10% على الباقات","رصيد AI إضافي"]} initial="خصم 20 ج.م على الحصة"/>
+      <Card style={{ marginTop: 8 }} onClick={() => go("referral")}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>ما عندكش كوبون؟ ادعُ أصحابك</div>
+      </Card>
+    </Page>
+  )
+  if (screen === "hw-ok") return (
+    <Page title="تم التسليم" onBack={() => go("tasks")} footer={<Btn onClick={() => go("quiz-ok")}>عرض النتيجة</Btn>}>
+      <SuccessBlock title="تم تسليم الواجب بنجاح" cta="عرض النتيجة" onCta={() => go("quiz-ok")}/>
     </Page>
   )
   if (screen === "refund") return (
-    <Page title="طلب استرداد" onBack={() => go("tx-detail")} footer={<Btn onClick={() => go("tx")}>طلب استرداد</Btn>}>
+    <Page title="طلب استرداد" onBack={() => go("tx-detail")} footer={<Btn onClick={() => { toast("تم إرسال طلب الاسترداد"); go("tx") }}>طلب استرداد</Btn>}>
       <p style={{ fontFamily: AR }}>الحالة: مؤهل حسب سياسة الإلغاء.</p>
-      {["المدرس ألغى الحصة","مشكلة تقنية","لم تتم الحصة","سبب آخر"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="مشكلة تقنية"} onClick={() => {}}>{x}</Choice></div>)}
+      <SelectList options={["المدرس ألغى الحصة","مشكلة تقنية","لم تتم الحصة","سبب آخر"]} initial="مشكلة تقنية"/>
     </Page>
   )
   if (screen === "cancel-session") return (
@@ -3877,16 +4142,28 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "bookings") return <Bookings go={go} teacher={ctx.role==="t"}/>
   if (screen === "session") return (
-    <Page title="تفاصيل الحصة" onBack={() => go("bookings")} footer={<Btn>دخول الحصة</Btn>}>
+    <Page title="تفاصيل الحصة" onBack={() => go("bookings")} footer={<Btn onClick={() => go("vid-call")}>دخول الحصة</Btn>}>
       <Card style={{ marginBottom: 10 }}><div style={{ fontFamily: AR, lineHeight: 2 }}>أ/ محمد حسن · أحمد علي · رياضيات · السبت 6:00 م · 60 د · مدفوعة</div></Card>
-      <Btn variant="secondary" onClick={() => go("ai-chat")}>رسالة</Btn>
+      <Btn variant="secondary" onClick={() => go("chat")}>رسالة</Btn>
       <Btn variant="ghost" onClick={() => go("cancel-session")}>إلغاء الحصة</Btn>
     </Page>
   )
   if (screen === "review") return (
-    <Page title="قيّم المدرس" onBack={() => go("session")} footer={<Btn onClick={() => go("s-home")}>إرسال التقييم</Btn>}>
+    <Page title="قيّم المدرس" onBack={() => go("session")} footer={<Btn onClick={() => { toast("شكراً! تم إرسال تقييمك"); go("s-home") }}>إرسال التقييم</Btn>}>
       <p style={{ fontFamily: AR }}>للتقييم بعد حصة مكتملة فقط.</p>
-      {["الشرح","الالتزام","التواصل"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x} ★★★★★</div></Card>)}
+      {(["الشرح","الالتزام","التواصل"] as const).map((x) => (
+        <Card key={x} style={{ marginBottom: 8 }}>
+          <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>{x}</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[1,2,3,4,5].map((n) => (
+              <button key={n} onClick={() => setRatings((p) => ({ ...p, [x]: n }))} style={{
+                background: "none", border: "none", fontSize: 22, cursor: "pointer",
+                color: (ratings[x] ?? 5) >= n ? T.amber : T.border,
+              }}>★</button>
+            ))}
+          </div>
+        </Card>
+      ))}
     </Page>
   )
   if (screen === "invoices") return (
@@ -3898,40 +4175,61 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "pay-methods") return (
     <Page title="وسائل الدفع" onBack={() => go(backAcc)}>
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>بطاقة · **** 4242 · افتراضي</div></Card>
-      <Btn variant="secondary">إضافة وسيلة دفع</Btn>
+      <Card style={{ marginBottom: 8 }} onClick={() => toast("البطاقة الافتراضية نشطة")}><div style={{ fontFamily: AR }}>بطاقة · **** 4242 · افتراضي</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => toast("محفظة فودافون كاش جاهزة")}><div style={{ fontFamily: AR }}>محفظة إلكترونية · فودافون كاش</div></Card>
+      <Btn variant="secondary" onClick={() => go("add-money")}>إضافة وسيلة دفع</Btn>
     </Page>
   )
   if (screen === "pricing") return (
     <Page title="الأسعار والخدمات" onBack={() => go("t-account")} footer={<Btn onClick={() => go("pkg-create")}>إنشاء باقة</Btn>}>
-      <Card style={{ marginBottom: 10 }}><div style={{ fontFamily: AR }}>حصة رياضيات 60 د · أونلاين 180 ج.م · حضوري 220 ج.م</div></Card>
+      <Card style={{ marginBottom: 10 }} onClick={() => toast("تم فتح تعديل سعر الحصة")}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>حصة رياضيات 60 د</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>أونلاين 180 ج.م · حضوري 220 ج.م</div>
+      </Card>
+      <Card style={{ marginBottom: 10 }} onClick={() => go("pkg-sales")}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>باقة تأسيس الرياضيات</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>2,650 ج.م · اضغط لإدارة الباقة</div>
+      </Card>
       <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>قبل النشر تشوف سعر الطالب ورسوم المنصة والصافي المتوقع.</p>
+      <Btn variant="secondary" onClick={() => go("availability")}>ضبط المواعيد المتاحة</Btn>
     </Page>
   )
   if (screen === "availability") return (
-    <Page title="مواعيدي" onBack={() => go("t-account")}>
-      {["سبت 4–9 م","أحد 4–9 م","ثلاثاء إجازة"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+    <Page title="مواعيدي" onBack={() => go("t-account")} footer={<Btn onClick={() => toast("تم حفظ المواعيد")}>حفظ التغييرات</Btn>}>
+      {["سبت 4–9 م","أحد 4–9 م","ثلاثاء إجازة"].map((x) => (
+        <Card key={x} style={{ marginBottom: 8 }} onClick={() => toast(`تم تعديل: ${x}`)}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>اضغط للتعديل</div>
+        </Card>
+      ))}
+      <Btn variant="ghost" onClick={() => go("calendar")}>عرض التقويم</Btn>
       <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>مدة الحصة 60 د · فاصل 10 د · تكرار أسبوعي</p>
     </Page>
   )
   if (screen === "calendar") return (
     <Page title="التقويم" onBack={() => go(ctx.role==="t"?"t-home":"s-home")}>
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>🔵 حصة رياضيات · السبت 6 م</div></Card>
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>🟠 تسليم واجب المعادلات</div></Card>
-      <Card><div style={{ fontFamily: AR }}>🟣 اختبار قصير</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("session")}><div style={{ fontFamily: AR }}>🔵 حصة رياضيات · السبت 6 م</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("hw")}><div style={{ fontFamily: AR }}>🟠 تسليم واجب المعادلات</div></Card>
+      <Card onClick={() => go("quiz")}><div style={{ fontFamily: AR }}>🟣 اختبار قصير</div></Card>
     </Page>
   )
   if (screen === "security") return (
     <Page title="الأمان" onBack={() => go(backAcc)}>
-      <Card style={{ marginBottom: 8 }} onClick={() => go("devices")}><div style={{ fontFamily: AR }}>الأجهزة المسجّلة</div></Card>
-      {["تغيير كلمة المرور","التحقق بخطوتين","تسجيل الخروج من كل الأجهزة"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
-      {ctx.role==="t" && <Card onClick={() => go(ctx.verified?"t-verified":"t-pending")}><div style={{ fontFamily: AR }}>حالة توثيق الهوية</div></Card>}
-      <Card style={{ marginTop: 8 }} onClick={() => go("account-settings")}><div style={{ fontFamily: AR, color: T.muted }}>إعدادات الحساب</div></Card>
+      <ActionCard label="الأجهزة المسجّلة" onClick={() => go("devices")} sub="إدارة الجلسات"/>
+      <ActionCard label="تغيير كلمة المرور" onClick={() => toast("تم إرسال رابط تغيير كلمة المرور")}/>
+      <SettingToggle label="التحقق بخطوتين" initial/>
+      <ActionCard label="تسجيل الخروج من كل الأجهزة" onClick={() => { toast("تم تسجيل الخروج من كل الأجهزة"); go("login") }}/>
+      {ctx.role==="t" && <ActionCard label="حالة توثيق الهوية" onClick={() => go(ctx.verified?"t-verified":"t-pending")}/>}
+      <ActionCard label="إعدادات الحساب" onClick={() => go("account-settings")} sub="حذف الحساب والمزيد"/>
     </Page>
   )
   if (screen === "privacy") return (
     <Page title="الخصوصية" onBack={() => go(backAcc)}>
-      {["ظهور الملف","الظهور في السوق","إشعارات تسويقية","صلاحيات البيانات"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+      <SettingToggle label="ظهور الملف" initial/>
+      <SettingToggle label="الظهور في السوق" initial={ctx.role==="t"}/>
+      <SettingToggle label="إشعارات تسويقية"/>
+      <SettingToggle label="صلاحيات البيانات" initial/>
+      <Btn variant="ghost" onClick={() => go("policies")}>سياسة الخصوصية الكاملة</Btn>
     </Page>
   )
   if (screen === "delete-acc") return (
@@ -3960,13 +4258,26 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "support") return (
     <Page title="المساعدة والدعم" onBack={() => go(backAcc)}>
-      {["الحجوزات","الدفع","الاشتراكات","المحفظة","المدرسين","المعلم الذكي","الحساب"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x}</div></Card>)}
+      {[
+        { l: "الحجوزات", s: "bookings" as Screen },
+        { l: "الدفع", s: "pay-methods" as Screen },
+        { l: "الاشتراكات", s: "s-plans" as Screen },
+        { l: "المحفظة", s: "s-wallet" as Screen },
+        { l: "المدرسين", s: "find" as Screen },
+        { l: "المعلم الذكي", s: "ai-chat" as Screen },
+        { l: "الحساب", s: "account-settings" as Screen },
+      ].map((x) => (
+        <Card key={x.l} style={{ marginBottom: 8 }} onClick={() => go(x.s)}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{x.l}</div>
+        </Card>
+      ))}
       <Btn variant="secondary" onClick={() => go("report-user")}>الإبلاغ عن مستخدم</Btn>
+      <Btn variant="ghost" onClick={() => go("help-center")}>مركز المساعدة</Btn>
     </Page>
   )
   if (screen === "report-user") return (
-    <Page title="الإبلاغ عن مستخدم" onBack={() => go("support")} footer={<Btn onClick={() => go("support")}>إرسال البلاغ</Btn>}>
-      {["سلوك غير مناسب","محتوى غير مناسب","مشكلة في الحصة","احتيال","سبب آخر"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={false} onClick={() => {}}>{x}</Choice></div>)}
+    <Page title="الإبلاغ عن مستخدم" onBack={() => go("support")} footer={<Btn onClick={() => { toast("تم إرسال البلاغ"); go("support") }}>إرسال البلاغ</Btn>}>
+      <SelectList options={["سلوك غير مناسب","محتوى غير مناسب","مشكلة في الحصة","احتيال","سبب آخر"]}/>
     </Page>
   )
   if (screen === "guardian") return (
@@ -3992,14 +4303,15 @@ function ExtraFlow({ screen, go, ctx }: {
 }
 
 function TeacherId({ go }: { go: Go }) {
+  const toast = useToast()
   const [ok, setOk] = useState(false)
   const [id, setId] = useState("بطاقة الرقم القومي")
   return (
     <Page title="توثيق حساب المدرس" onBack={() => go("t-setup")} footer={<Btn onClick={() => go("t-review")}>إرسال للمراجعة</Btn>}>
       <p style={{ fontFamily: AR, color: T.sub, lineHeight: 1.75 }}>علشان نحافظ على أمان الطلبة وجودة المدرسين على Teac Teacher، محتاجين نتأكد من هويتك.</p>
       {["بطاقة الرقم القومي","جواز سفر"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={id===x} onClick={() => setId(x)}>{x}</Choice></div>)}
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>صورة الوجه الأمامي · كاميرا أو معرض</div></Card>
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>صورة الوجه الخلفي · كاميرا أو معرض</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => toast("تم اختيار صورة الوجه الأمامي")}><div style={{ fontFamily: AR }}>صورة الوجه الأمامي · كاميرا أو معرض</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => toast("تم اختيار صورة الوجه الخلفي")}><div style={{ fontFamily: AR }}>صورة الوجه الخلفي · كاميرا أو معرض</div></Card>
       <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>بيانات التحقق محمية ولا تظهر للطلاب أو أي مستخدم آخر.</p>
       <label style={{ display: "flex", gap: 8, fontFamily: AR, fontSize: 14 }}>
         <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)}/>
@@ -4017,23 +4329,25 @@ function StudentWallet({ go }: { go: Go }) {
         <Card onClick={() => go("add-money")}><div style={{ fontFamily: AR, fontWeight: 700 }}>إضافة رصيد</div></Card>
         <Card onClick={() => go("tx")}><div style={{ fontFamily: AR, fontWeight: 700 }}>المعاملات</div></Card>
       </div>
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>رصيد نقدي 370 ج.م</div></Card>
-      <Card style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>رصيد مكافآت 80 ج.م · داخل Teac Teacher فقط</div></Card>
-      <Btn variant="ghost" onClick={() => go("s-plans")}>الكوبونات والخطط</Btn>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("add-money")}><div style={{ fontFamily: AR }}>رصيد نقدي 370 ج.م</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("referral")}><div style={{ fontFamily: AR }}>رصيد مكافآت 80 ج.م · داخل Teac Teacher فقط</div></Card>
+      <Btn variant="ghost" onClick={() => go("coupon")}>الكوبونات والخطط</Btn>
+      <Btn variant="ghost" onClick={() => go("s-plans")}>عرض خطط الاشتراك</Btn>
     </Page>
   )
 }
 
 function AddMoney({ go }: { go: Go }) {
   const [amt, setAmt] = useState("250")
+  const [method, setMethod] = useState("بطاقة بنكية")
   return (
-    <Page title="إضافة رصيد" onBack={() => go("s-wallet")} footer={<Btn onClick={() => go("pay-ok")}>تأكيد الدفع</Btn>}>
+    <Page title="إضافة رصيد" onBack={() => go("s-wallet")} footer={<Btn onClick={() => go("pay-ok")}>تأكيد الدفع · {method}</Btn>}>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>{["100","250","500"].map((x) => (
-        <button key={x} onClick={() => setAmt(x)} style={{ flex: 1, padding: 12, borderRadius: 14, border: `1.5px solid ${amt===x?T.brand:T.border}`, background: amt===x?T.brandLight:T.card, fontFamily: AR, fontWeight: 800 }}>{x}</button>
+        <button key={x} onClick={() => setAmt(x)} style={{ flex: 1, padding: 12, borderRadius: 14, border: `1.5px solid ${amt===x?T.brand:T.border}`, background: amt===x?T.brandLight:T.card, fontFamily: AR, fontWeight: 800, cursor: "pointer" }}>{x}</button>
       ))}</div>
       <Input placeholder="مبلغ آخر" value={amt} onChange={setAmt}/>
       <div style={{ height: 12 }}/>
-      {["بطاقة بنكية","محفظة إلكترونية","طرق دفع محلية"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="بطاقة بنكية"} onClick={() => {}}>{x}</Choice></div>)}
+      <SelectList options={["بطاقة بنكية","محفظة إلكترونية","طرق دفع محلية"]} initial={method} onChange={setMethod}/>
       <PriceSummary rows={[{k:"المبلغ",v:`${amt} ج.م`},{k:"رسوم الدفع إن وُجدت",v:"تظهر قبل التأكيد"}]} total={`${amt} ج.م`}/>
       <Btn variant="ghost" onClick={() => go("pay-fail")}>محاكاة فشل الدفع</Btn>
     </Page>
@@ -4464,9 +4778,10 @@ export default function App() {
 
   return (
     <IPhoneFrame>
+      <ToastHost>
       <div style={{
         flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
-        overflow: "hidden", fontFamily: AR, background: T.card,
+        overflow: "hidden", fontFamily: AR, background: T.card, position: "relative",
       }}>
         {screen === "splash" && <Splash go={() => go("onboard")}/>}
         {screen === "onboard" && <Onboard go={() => go("login")} goLogin={() => go("login")}/>}
@@ -4520,6 +4835,7 @@ export default function App() {
           kids, kidId, setKidId, hasKids, setHasKids,
         }}/>
       </div>
+      </ToastHost>
     </IPhoneFrame>
   )
 }
