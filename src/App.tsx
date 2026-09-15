@@ -6,6 +6,15 @@ import {
   type ReactNode,
   type CSSProperties,
 } from "react"
+import {
+  UNI_CATALOG,
+  resolveCourses,
+  facultyQuickActions,
+  facultyAiBlurb,
+  withProgress,
+  type UniProfile,
+  type FacultyKind,
+} from "./universityCatalog"
 
 // ─── Brand Tokens ─────────────────────────────────────────────────────────────
 const AR = "'Cairo', sans-serif"
@@ -219,13 +228,13 @@ function Card({ children, style: sx = {}, onClick }: { children: ReactNode; styl
   )
 }
 
-function Chip({ children, color = T.brand, filled }: { children: ReactNode; color?: string; filled?: boolean }) {
+function Chip({ children, color = T.brand, filled, onClick }: { children: ReactNode; color?: string; filled?: boolean; onClick?: () => void }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px",
       borderRadius: 100, background: filled ? color : color + "12",
       color: filled ? "white" : color, fontSize: 12, fontWeight: 700,
-      whiteSpace: "nowrap", fontFamily: AR,
+      whiteSpace: "nowrap", fontFamily: AR, cursor: onClick ? "pointer" : undefined,
       border: filled ? "none" : `1px solid ${color}22`,
     }}>
       {children}
@@ -367,6 +376,9 @@ type Screen =
   | "p-subs" | "p-sub-manage" | "p-pkgs" | "p-bookings" | "p-teachers" | "p-chat"
   | "p-approve" | "p-approve-pkg" | "p-approve-book" | "p-approve-ai" | "p-approve-ok"
   | "p-notifs" | "p-more" | "devices" | "help-center" | "policies" | "account-settings" | "s-approve-sent"
+  | "u-uni" | "u-faculty" | "u-dept" | "u-year" | "u-sem" | "u-courses" | "u-course-add"
+  | "u-home" | "u-course" | "u-course-ai" | "u-exam" | "u-calendar" | "u-edit" | "u-search" | "u-teachers"
+  | "t-teach-type" | "t-uni-spec"
 
 type Go = (s: Screen) => void
 type Role = "s" | "t" | "p"
@@ -380,12 +392,123 @@ type Kid = {
   link: "connected" | "pending" | "rejected" | "removed"
   plan: string
   ai: string
+  canReports: boolean
+  canFinance: boolean
+  canApprove: boolean
+  canTeachers: boolean
+  canPackages: boolean
 }
 
 const DEMO_KIDS: Kid[] = [
-  { id: "ahmed", name: "أحمد", grade: "أولى ثانوي", pct: 78, note: "مستواه مستقر هذا الأسبوع", link: "connected", plan: "Student Plus", ai: "AI Plus" },
-  { id: "sara", name: "سارة", grade: "ثانية إعدادي", pct: 64, note: "محتاجة متابعة في العلوم", link: "connected", plan: "Free Plan", ai: "AI Free" },
+  { id: "ahmed", name: "أحمد", grade: "أولى ثانوي", pct: 78, note: "مستواه مستقر هذا الأسبوع", link: "connected", plan: "Student Plus", ai: "AI Plus", canReports: true, canFinance: true, canApprove: true, canTeachers: true, canPackages: true },
+  { id: "sara", name: "سارة", grade: "ثانية إعدادي", pct: 64, note: "محتاجة متابعة في العلوم", link: "connected", plan: "Free Plan", ai: "AI Free", canReports: true, canFinance: false, canApprove: false, canTeachers: true, canPackages: false },
 ]
+
+type PlanId = "free" | "plus" | "pro"
+
+const FEATURES = {
+  wallet: true,
+  packages: true,
+  live: true,
+  marketplace: true,
+  guardian: true,
+}
+
+type MoreAccess = {
+  role: Role
+  verified: boolean
+  plan: PlanId
+  name: string
+  subtitle: string
+  hasTeacher: boolean
+  hasStudents: boolean
+  hasKids: boolean
+  hasPackage: boolean
+  hasGuardian: boolean
+  wallet: boolean
+  pay: boolean
+  withdraw: boolean
+  sellPackages: boolean
+  live: boolean
+  marketplace: boolean
+  sub: boolean
+  chat: boolean
+  book: boolean
+  childAcademic: boolean
+  childFinance: boolean
+  childTeachers: boolean
+  childPackages: boolean
+  approve: boolean
+  pendingApprovals: number
+  showVerify: boolean
+  upgradePro: boolean
+  isUniversity: boolean
+  uniLabel?: string
+}
+
+function resolveMoreAccess(s: {
+  role: Role
+  verified: boolean
+  plan: PlanId
+  hasTeacher: boolean
+  teacherEmpty: boolean
+  hasKids: boolean
+  hasPackage: boolean
+  hasGuardian: boolean
+  kids: Kid[]
+  kidId: string
+  uni?: UniProfile | null
+}): MoreAccess {
+  const kid = s.kids.find((k) => k.id === s.kidId)
+  const student = s.role === "s"
+  const teacher = s.role === "t"
+  const parent = s.role === "p"
+  const teacherPro = teacher && s.plan === "pro"
+  const teacherMoney = teacher && s.verified
+  const isUniversity = student && !!s.uni
+  const name = teacher ? "أ/ محمد أحمد" : "أحمد محمد"
+  const uniLabel = s.uni
+    ? `${s.uni.facultyName.replace("كلية ", "")} · ${s.uni.year}`
+    : undefined
+  const subtitle = teacher
+    ? (s.verified ? (teacherPro ? "Teacher Pro · موثّق" : "مدرس موثّق · خطة مجانية") : "بانتظار التوثيق · خطة مجانية")
+    : parent
+      ? (s.hasKids ? `ولي أمر · ${s.kids.length} أبناء` : "ولي أمر")
+      : isUniversity
+        ? `${uniLabel}${s.plan === "plus" ? " · Plus" : ""}`
+        : (s.plan === "plus" ? "أولى ثانوي · Student Plus" : "أولى ثانوي · خطة مجانية")
+  return {
+    role: s.role,
+    verified: s.verified,
+    plan: s.plan,
+    name,
+    subtitle,
+    hasTeacher: s.hasTeacher,
+    hasStudents: !s.teacherEmpty,
+    hasKids: s.hasKids,
+    hasPackage: s.hasPackage,
+    hasGuardian: s.hasGuardian && !isUniversity,
+    wallet: (student && (s.hasTeacher || isUniversity) && FEATURES.wallet) || (parent && s.hasKids && !!kid?.canFinance && FEATURES.wallet),
+    pay: (student && (s.hasTeacher || isUniversity)) || (parent && s.hasKids && !!kid?.canFinance),
+    withdraw: teacherMoney,
+    sellPackages: teacherPro && s.verified && FEATURES.packages,
+    live: teacherPro && FEATURES.live,
+    marketplace: teacher && s.verified && FEATURES.marketplace,
+    sub: (student && s.plan !== "free") || (teacher && s.plan !== "free") || (parent && s.hasKids && !!kid?.canFinance),
+    chat: (student && s.hasTeacher) || (teacher && !s.teacherEmpty) || (parent && s.hasKids && !!kid?.canTeachers),
+    book: (student && (s.hasTeacher || isUniversity)) || (teacher && s.verified) || (parent && s.hasKids),
+    childAcademic: parent && s.hasKids && !!kid?.canReports,
+    childFinance: parent && s.hasKids && !!kid?.canFinance,
+    childTeachers: parent && s.hasKids && !!kid?.canTeachers,
+    childPackages: parent && s.hasKids && !!kid?.canPackages && FEATURES.packages,
+    approve: parent && s.hasKids && !!kid?.canApprove,
+    pendingApprovals: parent && s.hasKids && kid?.canApprove ? 2 : 0,
+    showVerify: teacher && !s.verified,
+    upgradePro: teacher && s.verified && s.plan !== "pro",
+    isUniversity,
+    uniLabel,
+  }
+}
 
 type DueOrder = {
   id: string
@@ -1526,9 +1649,14 @@ function StudentProfile({ onBack }: { onBack: () => void }) {
 }
 
 // ─── SCREEN 8 · AI Chat ───────────────────────────────────────────────────────
-function AIChat({ onBack, onLimit }: { onBack: () => void; onLimit?: () => void }) {
+function AIChat({ onBack, onLimit, uni, courseName }: { onBack: () => void; onLimit?: () => void; uni?: UniProfile | null; courseName?: string }) {
+  const contextLine = uni
+    ? `${uni.facultyName}${uni.department ? ` · ${uni.department}` : ""} · ${uni.year}${courseName ? ` · ${courseName}` : uni.courses[0] ? ` · ${uni.courses[0].name}` : ""}`
+    : null
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "ai", text: "أهلاً أحمد 👋، هنذاكر إيه النهاردة؟", time: "٩:٤١" },
+    { role: "ai", text: contextLine
+      ? `أهلاً أحمد 👋، عارف إنك في ${contextLine}. هنذاكر إيه النهاردة؟`
+      : "أهلاً أحمد 👋، هنذاكر إيه النهاردة؟", time: "٩:٤١" },
   ])
   const [input, setInput] = useState("")
   const [learningMode, setLearningMode] = useState(false)
@@ -1549,16 +1677,26 @@ function AIChat({ onBack, onLimit }: { onBack: () => void; onLimit?: () => void 
     setTyping(true)
     scrollDown()
     setTimeout(() => {
-      const reply = learningMode
-        ? "ممتاز! هنحل الموضوع خطوة بخطوة. الخطوة الأولى: حدد معاملات المعادلة (a, b, c). ما رأيك؟"
-        : "سؤال رائع! المعادلة التربيعية: ax² + bx + c = 0\n\nالحل بالقانون: x = (−b ± √(b²−4ac)) / 2a\n\nهل تريد مثال تطبيقي؟"
+      const reply = uni
+        ? (learningMode
+          ? `هنمشي خطوة بخطوة في سياق ${courseName ?? uni.courses[0]?.name ?? "مادتك"} — من غير ما نحل الواجب عنك. إيه الجزء اللي واقف عندك؟`
+          : `بما إنك في ${uni.facultyName}${uni.department ? ` / ${uni.department}` : ""}، هشرحلك المفهوم بمستوى ${uni.year}.${courseName || uni.courses[0] ? ` مناسب لمادة ${courseName ?? uni.courses[0].name}.` : ""}\n\nعايز مثال، ملخص، ولا اختبار سريع؟`)
+        : learningMode
+          ? "ممتاز! هنحل الموضوع خطوة بخطوة. الخطوة الأولى: حدد معاملات المعادلة (a, b, c). ما رأيك؟"
+          : "سؤال رائع! المعادلة التربيعية: ax² + bx + c = 0\n\nالحل بالقانون: x = (−b ± √(b²−4ac)) / 2a\n\nهل تريد مثال تطبيقي؟"
       setTyping(false)
       setMsgs((p) => [...p, { role: "ai", text: reply, time }])
       scrollDown()
     }, 1200)
-  }, [input, learningMode, scrollDown])
+  }, [input, learningMode, scrollDown, uni, courseName])
 
-  const quick = ["اشرحلي درس","حل سؤال معايا","اختبرني","راجع معايا","اعمللي خطة مذاكرة","ارفع صورة سؤال"]
+  const quick = uni
+    ? (uni.facultyKind === "cs"
+      ? ["اشرحلي الكود","ساعدني أفهم Error","اختبرني في Algorithms","راجع Assignment","شرح Concept"]
+      : uni.facultyKind === "medicine"
+        ? ["اسأل عن Case","راجع محاضرة","حل MCQ","بنك الأسئلة"]
+        : ["اشرح","لخص","اختبرني","حل سؤال معايا","راجع ملف","خطة مذاكرة"])
+    : ["اشرحلي درس","حل سؤال معايا","اختبرني","راجع معايا","اعمللي خطة مذاكرة","ارفع صورة سؤال"]
 
   return (
     <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
@@ -1712,11 +1850,14 @@ function StudentSetup({ go }: { go: Go }) {
     ابتدائي: ["أول","ثاني","ثالث","رابع","خامس","سادس"],
     إعدادي: ["أولى إعدادي","تانية إعدادي","تالتة إعدادي"],
     ثانوي: ["أولى ثانوي","تانية ثانوي","تالتة ثانوي"],
-    جامعة: ["سنة أولى","سنة تانية","سنة تالتة","سنة رابعة"],
     أخرى: ["أخرى"],
   }
   const toggle = (x: string) => setSubs((p) => p.includes(x) ? p.filter(i => i !== x) : [...p, x])
-  const next = () => step < 4 ? setStep(step + 1) : go("s-start")
+  const next = () => {
+    if (step === 0 && stage === "جامعة") { go("u-uni"); return }
+    if (step < 4) setStep(step + 1)
+    else go("s-start")
+  }
   return (
     <Page title="إعداد الملف" onBack={() => step ? setStep(step - 1) : go("role")} footer={<Btn onClick={next}>{step === 4 ? "ابدأ رحلتك" : "التالي"}</Btn>}>
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
@@ -1747,15 +1888,423 @@ function StudentSetup({ go }: { go: Go }) {
   )
 }
 
+type UniDraft = {
+  universityId: string
+  universityName: string
+  universityType: string
+  facultyId: string
+  facultyName: string
+  facultyKind: FacultyKind
+  facultyDesc: string
+  department?: string
+  year: string
+  semester: string
+  selectedCourseIds: string[]
+  customCourses: { id: string; name: string; code?: string }[]
+}
+
+const emptyUniDraft = (): UniDraft => ({
+  universityId: "", universityName: "", universityType: "",
+  facultyId: "", facultyName: "", facultyKind: "other", facultyDesc: "",
+  year: "", semester: "", selectedCourseIds: [], customCourses: [],
+})
+
+function facultyIcon(kind: FacultyKind) {
+  if (kind === "medicine" || kind === "pharmacy") return Ic.sparkle
+  if (kind === "engineering") return Ic.classes
+  if (kind === "cs") return Ic.robot
+  if (kind === "commerce") return Ic.wallet
+  if (kind === "law") return Ic.book
+  return Ic.book
+}
+
+function UniversitySetupFlow({
+  screen, go, draft, setDraft, onComplete,
+}: {
+  screen: Screen
+  go: Go
+  draft: UniDraft
+  setDraft: (d: UniDraft | ((p: UniDraft) => UniDraft)) => void
+  onComplete: (p: UniProfile) => void
+}) {
+  const [q, setQ] = useState("")
+  const [customName, setCustomName] = useState("")
+  const [customCode, setCustomCode] = useState("")
+  const uni = UNI_CATALOG.find((u) => u.id === draft.universityId)
+  const faculty = uni?.faculties.find((f) => f.id === draft.facultyId)
+  const catalogCourses = faculty ? resolveCourses(faculty, draft.department, draft.year, draft.semester) : []
+  const allCourses = [...catalogCourses, ...draft.customCourses]
+
+  if (screen === "u-uni") {
+    const list = UNI_CATALOG.filter((u) => !q || u.name.includes(q) || u.type.includes(q))
+    return (
+      <Page title="بتدرس في جامعة إيه؟" onBack={() => go("s-setup")} footer={
+        <Btn onClick={() => draft.universityId && go("u-faculty")} style={!draft.universityId ? { opacity: 0.5 } : undefined}>التالي</Btn>
+      }>
+        <Input placeholder="ابحث عن جامعتك" value={q} onChange={setQ}/>
+        <div style={{ height: 12 }}/>
+        {list.map((u) => (
+          <Card key={u.id} style={{ marginBottom: 10, border: draft.universityId === u.id ? `1.5px solid ${T.brand}` : undefined }} onClick={() => setDraft((p) => ({
+            ...emptyUniDraft(), universityId: u.id, universityName: u.name, universityType: u.type,
+          }))}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 16 }}>{u.name}</div>
+                <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{u.type} · {u.faculties.length} كليات</div>
+              </div>
+              <Chip color={T.brand}>{u.type}</Chip>
+            </div>
+          </Card>
+        ))}
+        <Card style={{ background: T.brandXLight }} onClick={() => setDraft((p) => ({
+          ...emptyUniDraft(), universityId: "other", universityName: "جامعة أخرى", universityType: "أخرى",
+          facultyId: "other-f", facultyName: "كلية أخرى", facultyKind: "other", facultyDesc: "مواد مخصصة",
+        }))}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>مش لاقي جامعتي</div>
+          <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, marginTop: 4 }}>إضافة / اختيار أخرى</div>
+        </Card>
+      </Page>
+    )
+  }
+
+  if (screen === "u-faculty") {
+    const faculties = uni?.faculties ?? [{
+      id: "other-f", name: "كلية أخرى", kind: "other" as FacultyKind, desc: "هتضيف المواد يدويًا",
+      years: ["الفرقة الأولى", "الفرقة الثانية", "الفرقة الثالثة", "الفرقة الرابعة"],
+      semesters: ["الترم الأول", "الترم الثاني"], coursesByKey: {},
+    }]
+    return (
+      <Page title="اختار كليتك" onBack={() => go("u-uni")} footer={
+        <Btn onClick={() => {
+          if (!draft.facultyId) return
+          const f = faculties.find((x) => x.id === draft.facultyId)
+          if (f?.departments?.length) go("u-dept")
+          else go("u-year")
+        }}>التالي</Btn>
+      }>
+        <p style={{ fontFamily: AR, color: T.muted, marginTop: 0 }}>{draft.universityName}</p>
+        {faculties.map((f) => (
+          <Card key={f.id} style={{ marginBottom: 10, border: draft.facultyId === f.id ? `1.5px solid ${T.brand}` : undefined }} onClick={() => setDraft((p) => ({
+            ...p, facultyId: f.id, facultyName: f.name, facultyKind: f.kind, facultyDesc: f.desc, department: undefined,
+          }))}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: T.gradBrand, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ width: 22, height: 22, display: "flex" }}>{facultyIcon(f.kind)}</span>
+              </div>
+              <div>
+                <div style={{ fontFamily: AR, fontWeight: 900 }}>{f.name}</div>
+                <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>{f.desc}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </Page>
+    )
+  }
+
+  if (screen === "u-dept") {
+    const deps = faculty?.departments ?? []
+    return (
+      <Page title="إيه قسمك أو تخصصك؟" onBack={() => go("u-faculty")} footer={
+        <Btn onClick={() => draft.department && go("u-year")}>التالي</Btn>
+      }>
+        {deps.map((d) => (
+          <div key={d} style={{ marginBottom: 8 }}>
+            <Choice on={draft.department === d} onClick={() => setDraft((p) => ({ ...p, department: d }))}>{d}</Choice>
+          </div>
+        ))}
+      </Page>
+    )
+  }
+
+  if (screen === "u-year") {
+    const years = faculty?.years ?? ["الفرقة الأولى", "الفرقة الثانية", "الفرقة الثالثة", "الفرقة الرابعة"]
+    return (
+      <Page title="إنت في الفرقة الكام؟" onBack={() => faculty?.departments?.length ? go("u-dept") : go("u-faculty")} footer={
+        <Btn onClick={() => draft.year && go("u-sem")}>التالي</Btn>
+      }>
+        {years.map((y) => (
+          <div key={y} style={{ marginBottom: 8 }}>
+            <Choice on={draft.year === y} onClick={() => setDraft((p) => ({ ...p, year: y }))}>{y}</Choice>
+          </div>
+        ))}
+      </Page>
+    )
+  }
+
+  if (screen === "u-sem") {
+    const sems = faculty?.semesters ?? ["الترم الأول", "الترم الثاني"]
+    return (
+      <Page title="اختار الفصل الدراسي" onBack={() => go("u-year")} footer={
+        <Btn onClick={() => draft.semester && go("u-courses")}>التالي</Btn>
+      }>
+        <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>ندعم نظام الترم والساعات المعتمدة والبرامج السنوية حسب إعداد الجامعة.</p>
+        {sems.map((s) => (
+          <div key={s} style={{ marginBottom: 8 }}>
+            <Choice on={draft.semester === s} onClick={() => setDraft((p) => ({ ...p, semester: s }))}>{s}</Choice>
+          </div>
+        ))}
+      </Page>
+    )
+  }
+
+  if (screen === "u-course-add") {
+    return (
+      <Page title="إضافة مادة" onBack={() => go("u-courses")} footer={
+        <Btn onClick={() => {
+          if (!customName.trim()) return
+          const id = `c-${Date.now()}`
+          setDraft((p) => ({
+            ...p,
+            customCourses: [...p.customCourses, { id, name: customName.trim(), code: customCode.trim() || undefined }],
+            selectedCourseIds: [...p.selectedCourseIds, id],
+          }))
+          setCustomName(""); setCustomCode("")
+          go("u-courses")
+        }}>إضافة المادة</Btn>
+      }>
+        <Input placeholder="اسم المادة" value={customName} onChange={setCustomName}/>
+        <div style={{ height: 10 }}/>
+        <Input placeholder="كود المادة (اختياري)" value={customCode} onChange={setCustomCode}/>
+      </Page>
+    )
+  }
+
+  if (screen === "u-courses") {
+    const toggle = (id: string) => setDraft((p) => ({
+      ...p,
+      selectedCourseIds: p.selectedCourseIds.includes(id)
+        ? p.selectedCourseIds.filter((x) => x !== id)
+        : [...p.selectedCourseIds, id],
+    }))
+    const finish = () => {
+      const picked = allCourses.filter((c) => draft.selectedCourseIds.includes(c.id))
+      const courses = withProgress(picked.length ? picked : allCourses.slice(0, Math.min(4, allCourses.length)))
+      onComplete({
+        universityId: draft.universityId,
+        universityName: draft.universityName,
+        universityType: draft.universityType,
+        facultyId: draft.facultyId,
+        facultyName: draft.facultyName,
+        facultyKind: draft.facultyKind,
+        facultyDesc: draft.facultyDesc,
+        department: draft.department,
+        year: draft.year,
+        semester: draft.semester,
+        courses,
+      })
+    }
+    return (
+      <Page title="موادك الترم ده" onBack={() => go("u-sem")} footer={
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Btn onClick={finish}>متابعة للرئيسية</Btn>
+          <Btn variant="secondary" onClick={() => go("u-course-add")}>إضافة مادة</Btn>
+        </div>
+      }>
+        <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>
+          {draft.facultyName}{draft.department ? ` · ${draft.department}` : ""} · {draft.year} · {draft.semester}
+        </p>
+        {allCourses.length === 0 && (
+          <EmptyBlock
+            title="لسه بنضيف مواد كليتك"
+            sub="تقدر تضيف المواد يدويًا أو تستخدم المعلم الذكي لحد ما المنهج يتكمل."
+            actions={[
+              { label: "أضف المواد يدويًا", onClick: () => go("u-course-add") },
+              { label: "استخدم المعلم الذكي", onClick: () => go("ai-chat"), primary: false },
+            ]}
+          />
+        )}
+        {allCourses.map((c) => (
+          <div key={c.id} style={{ marginBottom: 8 }}>
+            <Choice on={draft.selectedCourseIds.includes(c.id)} onClick={() => toggle(c.id)}>
+              {c.name}{c.code ? ` · ${c.code}` : ""}
+            </Choice>
+          </div>
+        ))}
+        <button onClick={() => go("u-course-add")} style={{ background: "none", border: "none", color: T.brand, fontFamily: AR, fontWeight: 800, cursor: "pointer", padding: "8px 0" }}>
+          مش لاقي المادة؟ إضافة مادة
+        </button>
+      </Page>
+    )
+  }
+
+  return null
+}
+
+function UniversityHome({
+  go, profile, hasTeacher, onOpenCourse,
+}: {
+  go: Go
+  profile: UniProfile
+  hasTeacher: boolean
+  onOpenCourse: (id: string) => void
+}) {
+  const navItems = [
+    { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
+    { key: "learn", label: "موادي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
+    { key: "ai", label: "المعلم الذكي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.robot}</span> },
+    { key: "tasks", label: "المهام", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.task}</span> },
+    { key: "profile", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
+  ]
+  const onNav = (k: string) => {
+    if (k === "home") go("u-home")
+    if (k === "learn") go("u-home")
+    if (k === "ai") go("ai-chat")
+    if (k === "tasks") go("u-calendar")
+    if (k === "profile") go("s-account")
+  }
+  const actions = facultyQuickActions(profile.facultyKind)
+  const ai = facultyAiBlurb(profile.facultyKind)
+  const subline = profile.department
+    ? `${profile.facultyName.replace(/^كلية /, "")} · ${profile.department}`
+    : `${profile.facultyName.replace(/^كلية /, "")} · ${profile.year}`
+
+  return (
+    <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
+      <div style={{ background: T.gradBrand, padding: "44px 20px 18px", flexShrink: 0 }}>
+        <StatusBar light/>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: AR }}>أهلاً يا أحمد 👋</h1>
+            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.85)", fontFamily: AR }}>{subline}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: AR }}>{profile.semester}</p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => go("u-search")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, color: "white", cursor: "pointer", fontFamily: AR, fontWeight: 800 }}>⌕</button>
+            <button onClick={() => go("notifs")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, color: "white", cursor: "pointer" }}>
+              <span style={{ width: 20, height: 20, display: "flex" }}>{Ic.bell}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "14px 20px 20px" }}>
+        <Card style={{ marginBottom: 12, padding: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontFamily: AR, fontSize: 12 }}>
+            <div><span style={{ color: T.muted }}>الجامعة</span><div style={{ fontWeight: 800, marginTop: 2 }}>{profile.universityName}</div></div>
+            <div><span style={{ color: T.muted }}>الكلية</span><div style={{ fontWeight: 800, marginTop: 2 }}>{profile.facultyName}</div></div>
+            {profile.department && <div><span style={{ color: T.muted }}>القسم</span><div style={{ fontWeight: 800, marginTop: 2 }}>{profile.department}</div></div>}
+            <div><span style={{ color: T.muted }}>الفرقة</span><div style={{ fontWeight: 800, marginTop: 2 }}>{profile.year}</div></div>
+            <div><span style={{ color: T.muted }}>الفصل</span><div style={{ fontWeight: 800, marginTop: 2 }}>{profile.semester}</div></div>
+          </div>
+          <button onClick={() => go("u-edit")} style={{ marginTop: 10, background: "none", border: "none", color: T.brand, fontFamily: AR, fontWeight: 800, cursor: "pointer", padding: 0 }}>تعديل البيانات الدراسية</button>
+        </Card>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+          {actions.map((a) => (
+            <QuickTile key={a.label} label={a.label} sub={a.sub} onClick={() => go("ai-chat")} color={T.brand}/>
+          ))}
+        </div>
+
+        <HomeSection title="مواد الترم">
+          {profile.courses.map((c) => (
+            <Card key={c.id} style={{ marginBottom: 10 }} onClick={() => { onOpenCourse(c.id); go("u-course") }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: AR, fontWeight: 900 }}>{c.name}</div>
+                  {c.code && <div style={{ fontFamily: LAT, fontSize: 12, color: T.muted }}>{c.code}</div>}
+                  <div style={{ fontFamily: AR, fontSize: 12, color: T.sub, marginTop: 6 }}>{c.next}</div>
+                </div>
+                <ProgressRing pct={c.pct} size={56}/>
+              </div>
+              <div style={{ marginTop: 8 }}><ProgressBar pct={c.pct}/></div>
+              <Btn variant="ghost" onClick={() => { onOpenCourse(c.id); go("u-course") }}>فتح المادة</Btn>
+            </Card>
+          ))}
+        </HomeSection>
+
+        <Card style={{ background: T.aiXLight, border: `1px solid ${T.ai}22`, marginBottom: 12 }} onClick={() => go("ai-chat")}>
+          <AiTag/>
+          <div style={{ fontFamily: AR, fontWeight: 900, marginTop: 6 }}>{ai.title}</div>
+          <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.7, margin: "6px 0 0" }}>{ai.text}</p>
+          {ai.note && <p style={{ fontFamily: AR, fontSize: 11, color: T.muted, margin: "8px 0 0" }}>{ai.note}</p>}
+          <p style={{ fontFamily: AR, fontSize: 11, color: T.muted, margin: "6px 0 0" }}>
+            السياق: {profile.universityName} · {profile.facultyName}{profile.department ? ` · ${profile.department}` : ""} · {profile.year}
+          </p>
+        </Card>
+
+        <HomeSection title="مقترح ليك">
+          <Card style={{ marginBottom: 8 }} onClick={() => go("u-teachers")}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>مدرس {profile.courses[0]?.name ?? "مناسب"} لك</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>مطابق لكلية {profile.facultyName.replace(/^كلية /, "")}</div>
+          </Card>
+          <Card style={{ marginBottom: 8 }} onClick={() => go("lives")}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>بث مراجعة Final — {profile.courses[0]?.name ?? "المادة"}</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>موجّه لـ {profile.year}</div>
+          </Card>
+          <Card onClick={() => go("u-exam")}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>امتحان {profile.courses.find(c => c.name.includes("Database") || c.name.includes("Database") || c.id === "db")?.name ?? profile.courses[1]?.name ?? "المادة"} بعد 8 أيام</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>التقدم 62% · كمل خطة المراجعة</div>
+          </Card>
+        </HomeSection>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <Btn variant="secondary" onClick={() => go(hasTeacher ? "t-view" : "u-teachers")}>{hasTeacher ? "مدرسيني" : "ابحث عن مدرس"}</Btn>
+          <Btn variant="secondary" onClick={() => go("u-calendar")}>التقويم</Btn>
+        </div>
+      </div>
+      <NavBar items={navItems} active="home" highlight="ai" onSelect={onNav}/>
+    </div>
+  )
+}
+
+function UniversityCourse({ go, profile, courseId }: { go: Go; profile: UniProfile; courseId: string | null }) {
+  const [tab, setTab] = useState("المحتوى")
+  const c = profile.courses.find((x) => x.id === courseId) ?? profile.courses[0]
+  if (!c) return (
+    <Page title="المادة" onBack={() => go("u-home")}>
+      <p style={{ fontFamily: AR }}>لا توجد مواد بعد.</p>
+    </Page>
+  )
+  return (
+    <Page title={c.name} onBack={() => go("u-home")} footer={<Btn onClick={() => go("u-course-ai")}>اسأل AI عن المادة ✨</Btn>}>
+      <div style={{ fontFamily: LAT, color: T.muted, marginBottom: 8 }}>{c.code ?? "—"}</div>
+      <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, marginBottom: 12 }}>
+        {profile.facultyName} · {profile.year} · {profile.semester}
+      </div>
+      <ProgressRing pct={c.pct} size={72}/>
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", margin: "14px 0" }}>
+        {["المحتوى", "المهام", "الاختبارات", "الملفات", "المدرسين", "AI"].map((t) => (
+          <Chip key={t} filled={tab === t} onClick={() => setTab(t)}>{t}</Chip>
+        ))}
+      </div>
+      {tab === "المحتوى" && <Card><div style={{ fontFamily: AR, lineHeight: 1.7 }}>محاضرات · Sections · Labs · ملاحظات محفوظة خاصة بك.</div></Card>}
+      {tab === "المهام" && <Card><div style={{ fontFamily: AR }}>{c.next ?? "لا مهام قريبة"}</div></Card>}
+      {tab === "الاختبارات" && <Card onClick={() => go("u-exam")}><div style={{ fontFamily: AR, fontWeight: 800 }}>وضع الامتحان</div><div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>خطة مراجعة حسب تاريخك</div></Card>}
+      {tab === "الملفات" && <>
+        {["Lecture PDF", "Slides", "Sheet", "Past Exam"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x} · خاص</div></Card>)}
+        <p style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>الملفات خاصة إلا لو شاركتها صراحة.</p>
+      </>}
+      {tab === "المدرسين" && <Card onClick={() => go("u-teachers")}><div style={{ fontFamily: AR, fontWeight: 800 }}>مدرسون لـ {c.name}</div></Card>}
+      {tab === "AI" && <>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          {["اشرح", "لخص", "اختبرني", "حل سؤال معايا", "راجع ملف", "خطة مذاكرة"].map((x) => (
+            <Chip key={x} color={T.ai} onClick={() => go("u-course-ai")}>{x}</Chip>
+          ))}
+        </div>
+        <Card onClick={() => go("u-course-ai")} style={{ background: T.aiXLight }}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>اسأل AI عن المادة ✨</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>السياق مربوط بـ {c.name}{c.code ? ` (${c.code})` : ""}</div>
+        </Card>
+      </>}
+    </Page>
+  )
+}
+
 function TeacherSetup({ go }: { go: Go }) {
   const [step, setStep] = useState(0)
   const [name, setName] = useState("محمد حسن")
   const [bio, setBio] = useState("")
   const [mode, setMode] = useState("Both")
+  const [teachType, setTeachType] = useState("مدارس")
   return (
-    <Page title="بيانات المدرس" onBack={() => step ? setStep(step-1) : go("role")} footer={<Btn onClick={() => step < 1 ? setStep(step+1) : go("t-id")}>التالي</Btn>}>
+    <Page title="بيانات المدرس" onBack={() => step ? setStep(step-1) : go("role")} footer={<Btn onClick={() => {
+      if (step === 0) setStep(1)
+      else if (step === 1) setStep(2)
+      else if (teachType === "مدارس") go("t-id")
+      else go("t-uni-spec")
+    }}>التالي</Btn>}>
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[0,1].map((i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? T.emerald : T.border }}/>)}
+        {[0,1,2].map((i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? T.emerald : T.border }}/>)}
       </div>
       {step===0 && <>
         <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>بيانات المدرس</h1>
@@ -1770,23 +2319,54 @@ function TeacherSetup({ go }: { go: Go }) {
         </div>
       </>}
       {step===1 && <>
+        <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>نوع التدريس</h1>
+        {["مدارس","جامعات","الاثنين"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={teachType===x} onClick={() => setTeachType(x)}>{x}</Choice></div>)}
+        <p style={{ fontFamily: AR, color: T.muted, margin: "12px 0 8px" }}>طريقة التدريس</p>
+        {["أونلاين","حضوري","الاثنين"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={mode===x} onClick={() => setMode(x)}>{x}</Choice></div>)}
+      </>}
+      {step===2 && <>
         <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>بيانات التدريس</h1>
-        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>المواد</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{["رياضيات","فيزياء"].map(x => <Chip key={x} filled color={T.emerald}>{x}</Chip>)}</div>
-        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>المرحلة والصفوف</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{["ثانوي","أولى","تانية"].map(x => <Chip key={x} color={T.emerald}>{x}</Chip>)}</div>
+        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>{teachType === "جامعات" ? "مواد جامعية أولية" : "المواد"}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{(teachType === "جامعات" ? ["Data Structures","Calculus","Circuits"] : ["رياضيات","فيزياء"]).map(x => <Chip key={x} filled color={T.emerald}>{x}</Chip>)}</div>
+        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>{teachType === "جامعات" ? "الكليات" : "المرحلة والصفوف"}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{(teachType === "جامعات" ? ["هندسة","حاسبات"] : ["ثانوي","أولى","تانية"]).map(x => <Chip key={x} color={T.emerald}>{x}</Chip>)}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
           <Input placeholder="سنوات الخبرة" value="8"/>
           <Input placeholder="المؤهل الدراسي" value="بكالوريوس تربية"/>
           <Input placeholder="الجامعة" value="جامعة عين شمس"/>
-          <Input placeholder="التخصص" value="رياضيات"/>
+          <Input placeholder="التخصص" value={teachType === "جامعات" ? "علوم حاسب" : "رياضيات"}/>
           <Input placeholder="نبذة عن المدرس" value={bio} onChange={setBio}/>
         </div>
         <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>رفع شهادة المؤهل (اختياري)</p>
         <Card style={{ marginBottom: 12 }}><div style={{ fontFamily: AR }}>📷 اختيار من المعرض أو الكاميرا</div></Card>
-        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>طريقة التدريس</p>
-        {["أونلاين","حضوري","الاثنين"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={mode===x} onClick={() => setMode(x)}>{x}</Choice></div>)}
       </>}
+    </Page>
+  )
+}
+
+function TeacherUniSpec({ go }: { go: Go }) {
+  return (
+    <Page title="تخصص جامعي" onBack={() => go("t-setup")} footer={<Btn onClick={() => go("t-id")}>متابعة للتوثيق</Btn>}>
+      <p style={{ fontFamily: AR, color: T.sub }}>الكليات التي تدرّس لها</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        {["الهندسة","الحاسبات والمعلومات","التجارة"].map((x) => <Chip key={x} filled color={T.emerald}>{x}</Chip>)}
+      </div>
+      <p style={{ fontFamily: AR, color: T.sub }}>المواد الجامعية</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        {["Programming 1","Data Structures","Algorithms","Signals"].map((x) => <Chip key={x} color={T.emerald}>{x}</Chip>)}
+      </div>
+      <p style={{ fontFamily: AR, color: T.sub }}>الفرق الدراسية</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        {["أولى","تانية","تالتة"].map((x) => <Chip key={x} color={T.teal}>{x}</Chip>)}
+      </div>
+      <p style={{ fontFamily: AR, color: T.sub }}>نطاق الجامعات</p>
+      {["جامعة محددة","عدة جامعات","جميع الجامعات المناسبة للمادة"].map((x) => (
+        <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR, fontWeight: 700 }}>{x}</div></Card>
+      ))}
+      <Card style={{ background: T.emeraldLt }}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>نوع المادة</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.sub }}>Curriculum-specific أو General university course</div>
+      </Card>
     </Page>
   )
 }
@@ -1838,29 +2418,45 @@ function JoinClass({ go, onJoin }: { go: Go; onJoin: () => void }) {
   )
 }
 
-function FindTeacher({ go }: { go: Go }) {
-  const [q, setQ] = useState("")
-  const filters = ["المادة","المرحلة","السعر","التقييم","Online / Offline","المواعيد"]
-  const teachers = [
-    { name: "أ/ محمد حسن", sub: "رياضيات", rate: "4.9", exp: "8 سنوات", price: "180 ج", mode: "Both" },
-    { name: "أ/ سارة علي", sub: "فيزياء", rate: "4.8", exp: "6 سنوات", price: "160 ج", mode: "Online" },
-    { name: "أ/ كريم فؤاد", sub: "إنجليزي", rate: "4.7", exp: "5 سنوات", price: "150 ج", mode: "Offline" },
-  ]
+function FindTeacher({ go, uni }: { go: Go; uni?: UniProfile | null }) {
+  const [q, setQ] = useState(uni?.courses[0]?.name ?? "")
+  const filters = uni
+    ? ["المادة", "الكلية", "الفرقة", "السعر", "التقييم", "Online / Offline"]
+    : ["المادة", "المرحلة", "السعر", "التقييم", "Online / Offline", "المواعيد"]
+  const teachers = uni
+    ? [
+        { name: "أ/ محمد حسن", sub: `${uni.courses[0]?.name ?? "مادة جامعية"} · ${uni.facultyName.replace(/^كلية /, "")}`, rate: "4.9", exp: "Curriculum-specific", price: "220 ج", mode: "Online", tag: uni.universityName },
+        { name: "أ/ نورا علي", sub: `${uni.courses[1]?.name ?? "مادة عامة"} · عدة جامعات`, rate: "4.8", exp: "General university", price: "200 ج", mode: "Both", tag: "Online لأي جامعة" },
+        { name: "أ/ كريم فؤاد", sub: `${uni.year} · ${uni.department ?? uni.facultyName}`, rate: "4.7", exp: "8 سنوات", price: "180 ج", mode: "Offline", tag: uni.universityName },
+      ]
+    : [
+        { name: "أ/ محمد حسن", sub: "رياضيات", rate: "4.9", exp: "8 سنوات", price: "180 ج", mode: "Both", tag: "ثانوي" },
+        { name: "أ/ سارة علي", sub: "فيزياء", rate: "4.8", exp: "6 سنوات", price: "160 ج", mode: "Online", tag: "ثانوي" },
+        { name: "أ/ كريم فؤاد", sub: "إنجليزي", rate: "4.7", exp: "5 سنوات", price: "150 ج", mode: "Offline", tag: "ثانوي" },
+      ]
+  const shown = teachers.filter((t) => !q || t.name.includes(q) || t.sub.includes(q) || (uni && (uni.courses.some(c => c.name.includes(q) || (c.code && q.toUpperCase().includes(c.code))) || uni.facultyName.includes(q))))
   return (
-    <Page title="اختار مدرسك" onBack={() => go("s-home")}>
-      <Input placeholder="ابحث عن مدرس أو مادة" value={q} onChange={setQ}/>
+    <Page title={uni ? "مدرسون جامعيون" : "اختار مدرسك"} onBack={() => go(uni ? "u-home" : "s-home")}>
+      {uni && (
+        <Card style={{ marginBottom: 10, background: T.brandXLight }}>
+          <div style={{ fontFamily: AR, fontWeight: 800, fontSize: 13 }}>مطابقة حسب ملفك</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.sub }}>{uni.universityName} · {uni.facultyName}{uni.department ? ` · ${uni.department}` : ""} · {uni.courses[0]?.name}</div>
+        </Card>
+      )}
+      <Input placeholder={uni ? "ابحث عن مادة، كود، أو مدرس" : "ابحث عن مدرس أو مادة"} value={q} onChange={setQ}/>
       <div className="scrollbar-hide" style={{ display: "flex", gap: 8, overflowX: "auto", margin: "12px 0 16px" }}>
         {filters.map((f) => <Chip key={f}>{f}</Chip>)}
       </div>
-      {teachers.map((t) => (
+      {shown.map((t) => (
         <Card key={t.name} style={{ marginBottom: 10 }} onClick={() => go("t-view")}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div style={{ display: "flex", gap: 10 }}>
               <Avatar name={t.name} size={48} bg={T.brand}/>
               <div>
-            <div style={{ fontWeight: 800, fontFamily: AR }}>{t.name} <VerifiedBadge small/></div>
-                <div style={{ fontSize: 12, color: T.muted, fontFamily: AR }}>{t.sub} · ⭐ {t.rate} · {t.exp}</div>
+                <div style={{ fontWeight: 800, fontFamily: AR }}>{t.name} <VerifiedBadge small/></div>
+                <div style={{ fontSize: 12, color: T.muted, fontFamily: AR }}>{t.sub} · ⭐ {t.rate}</div>
                 <div style={{ fontSize: 12, color: T.brand, fontFamily: AR, marginTop: 4 }}>{t.price} / حصة · {t.mode}</div>
+                <div style={{ fontSize: 11, color: T.muted, fontFamily: AR, marginTop: 2 }}>يدرّس لـ {t.tag}</div>
               </div>
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.brand, fontFamily: AR, alignSelf: "center" }}>عرض الملف</span>
@@ -1871,13 +2467,14 @@ function FindTeacher({ go }: { go: Go }) {
   )
 }
 
-function TeacherView({ go }: { go: Go }) {
+function TeacherView({ go, uni }: { go: Go; uni?: UniProfile | null }) {
+  const back: Screen = uni ? "u-teachers" : "find"
   return (
-    <Page title="ملف المدرس" onBack={() => go("find")} footer={
+    <Page title="ملف المدرس" onBack={() => go(back)} footer={
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Btn onClick={() => go("book")}>احجز حصة</Btn>
         <Btn variant="secondary" onClick={() => go("chat")}>مراسلة المدرس</Btn>
-        <Btn variant="ghost" onClick={() => go("s-pkg")}>باقات أ/ محمد</Btn>
+        <Btn variant="ghost" onClick={() => go("pkg-detail")}>باقات أ/ محمد</Btn>
       </div>
     }>
       <div style={{ textAlign: "center", marginBottom: 16 }}>
@@ -1885,27 +2482,223 @@ function TeacherView({ go }: { go: Go }) {
         <div style={{ fontSize: 20, fontWeight: 800, fontFamily: AR, marginTop: 8, display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>أ/ محمد حسن <VerifiedBadge/></div>
         <div style={{ fontFamily: AR, color: T.muted, fontSize: 13 }}>⭐ 4.9 · 120 طالب · 8 سنوات خبرة</div>
       </div>
-      <Card style={{ marginBottom: 10 }}><div style={{ fontFamily: AR, lineHeight: 1.8, color: T.sub }}>مدرس رياضيات للمرحلة الثانوية، بشرح المفهوم من الأساس وأركز على حل الامتحانات.</div></Card>
+      {uni ? (
+        <>
+          <Card style={{ marginBottom: 10 }}>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>يدرّس لـ</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {[uni.facultyName.replace(/^كلية /, ""), "حاسبات ومعلومات"].map((x) => <Chip key={x} color={T.emerald}>{x}</Chip>)}
+            </div>
+          </Card>
+          <Card style={{ marginBottom: 10 }}>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>المواد</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {(uni.courses.slice(0, 3).map((c) => c.name).concat(["Calculus", "Signals"]).slice(0, 4)).map((x) => (
+                <Chip key={x} filled color={T.brand}>{x}</Chip>
+              ))}
+            </div>
+          </Card>
+          <Card style={{ marginBottom: 10 }}>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>الجامعات المدعومة</div>
+            <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.8 }}>
+              {uni.universityName} · جامعة عين شمس · Online لأي جامعة
+            </div>
+            <div style={{ marginTop: 8 }}><Chip color={T.teal}>Curriculum-specific</Chip></div>
+          </Card>
+        </>
+      ) : (
+        <Card style={{ marginBottom: 10 }}><div style={{ fontFamily: AR, lineHeight: 1.8, color: T.sub }}>مدرس رياضيات للمرحلة الثانوية، بشرح المفهوم من الأساس وأركز على حل الامتحانات.</div></Card>
+      )}
       <Card style={{ marginBottom: 10 }}>
         <div style={{ fontWeight: 800, fontFamily: AR, marginBottom: 8 }}>اختبار تحديد مستوى قبل الحصة</div>
         <p style={{ margin: 0, fontFamily: AR, color: T.sub, fontSize: 14 }}>اختبار قصير يساعد المدرس يفهم مستواك قبل أول حصة.</p>
         <Btn variant="ghost" onClick={() => go("quiz")} style={{ marginTop: 8 }}>ابدأ الاختبار</Btn>
       </Card>
-      <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>180 جنيه · 60 دقيقة · سبت–خميس 4–9 م</div>
+      <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>{uni ? "220" : "180"} جنيه · 60 دقيقة · سبت–خميس 4–9 م</div>
     </Page>
   )
 }
 
-function Booking({ go }: { go: Go }) {
+function UniversityExtras({
+  screen, go, profile, setProfile, setDraft, activeCourseId,
+}: {
+  screen: Screen
+  go: Go
+  profile: UniProfile
+  setProfile: (p: UniProfile) => void
+  setDraft: (d: UniDraft | ((p: UniDraft) => UniDraft)) => void
+  activeCourseId: string | null
+}) {
+  const course = profile.courses.find((c) => c.id === activeCourseId) ?? profile.courses[0]
+  const [examCourse, setExamCourse] = useState(course?.name ?? "")
+  const [examDate, setExamDate] = useState("بعد 8 أيام")
+  const [examHours, setExamHours] = useState("ساعتين يوميًا")
+  const [searchQ, setSearchQ] = useState("")
+
+  const startEdit = (to: Screen) => {
+    setDraft({
+      universityId: profile.universityId,
+      universityName: profile.universityName,
+      universityType: profile.universityType,
+      facultyId: profile.facultyId,
+      facultyName: profile.facultyName,
+      facultyKind: profile.facultyKind,
+      facultyDesc: profile.facultyDesc,
+      department: profile.department,
+      year: profile.year,
+      semester: profile.semester,
+      selectedCourseIds: profile.courses.map((c) => c.id),
+      customCourses: profile.courses.filter((c) => c.id.startsWith("c-")).map((c) => ({ id: c.id, name: c.name, code: c.code })),
+    })
+    go(to)
+  }
+
+  if (screen === "u-exam") {
+    return (
+      <Page title="وضع الامتحان" onBack={() => go("u-home")} footer={<Btn onClick={() => go("u-home")}>كمل خطة المراجعة</Btn>}>
+        <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>AI بيجهز خطة حسب مادتك ووقتك — بدون ما يحل الامتحان عنك.</p>
+        <p style={{ fontFamily: AR, fontWeight: 800 }}>المادة</p>
+        {profile.courses.map((c) => (
+          <div key={c.id} style={{ marginBottom: 8 }}>
+            <Choice on={examCourse === c.name} onClick={() => setExamCourse(c.name)}>{c.name}{c.code ? ` · ${c.code}` : ""}</Choice>
+          </div>
+        ))}
+        <p style={{ fontFamily: AR, fontWeight: 800 }}>تاريخ الامتحان</p>
+        {["بعد 3 أيام", "بعد 8 أيام", "بعد أسبوعين"].map((x) => (
+          <div key={x} style={{ marginBottom: 8 }}><Choice on={examDate === x} onClick={() => setExamDate(x)}>{x}</Choice></div>
+        ))}
+        <p style={{ fontFamily: AR, fontWeight: 800 }}>وقت المذاكرة المتاح</p>
+        {["ساعة يوميًا", "ساعتين يوميًا", "٣ ساعات يوميًا"].map((x) => (
+          <div key={x} style={{ marginBottom: 8 }}><Choice on={examHours === x} onClick={() => setExamHours(x)}>{x}</Choice></div>
+        ))}
+        <Card style={{ background: T.aiXLight, marginTop: 8 }}>
+          <div style={{ fontFamily: AR, fontWeight: 900 }}>خطة مراجعة — {examCourse || "المادة"}</div>
+          <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.8, marginTop: 6 }}>
+            أولوية: المفاهيم الأساسية → تمارين → اختبارات تجريبية<br/>
+            مهام يومية حسب {examHours}<br/>
+            Quiz تجريبي كل يومين · التقدم الحالي 62%
+          </div>
+        </Card>
+      </Page>
+    )
+  }
+
+  if (screen === "u-calendar") {
+    const events = [
+      { t: "محاضرة", n: course?.name ?? "المادة", d: "اليوم · 10:00 ص", c: T.brand },
+      { t: "Section", n: "Tutorial", d: "غداً · 12:00 م", c: T.teal },
+      { t: "Lab", n: "معمل", d: "الأربعاء · 2:00 م", c: T.emerald },
+      { t: "Deadline", n: "تسليم Assignment", d: "الخميس", c: T.amber },
+      { t: "Exam", n: `امتحان ${course?.name ?? ""}`, d: "بعد 8 أيام", c: T.rose },
+      { t: "Live", n: "بث مراجعة Final", d: "السبت · 8 م", c: T.ai },
+      { t: "Private", n: "حصة خاصة", d: "الأحد · 6 م", c: T.sub },
+    ]
+    return (
+      <Page title="التقويم الجامعي" onBack={() => go("u-home")}>
+        {events.map((e) => (
+          <Card key={e.t + e.n} style={{ marginBottom: 8, borderRight: `3px solid ${e.c}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR }}>
+              <div>
+                <Chip color={e.c}>{e.t}</Chip>
+                <div style={{ fontWeight: 800, marginTop: 6 }}>{e.n}</div>
+              </div>
+              <div style={{ fontSize: 12, color: T.muted, alignSelf: "center" }}>{e.d}</div>
+            </div>
+          </Card>
+        ))}
+      </Page>
+    )
+  }
+
+  if (screen === "u-edit") {
+    return (
+      <Page title="البيانات الدراسية" onBack={() => go("u-home")} footer={
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Btn onClick={() => startEdit("u-uni")}>تعديل المسار الجامعي</Btn>
+          <Btn variant="secondary" onClick={() => startEdit("u-courses")}>تعديل المواد</Btn>
+        </div>
+      }>
+        <Card style={{ marginBottom: 10 }}>
+          {[
+            ["الجامعة", profile.universityName],
+            ["الكلية", profile.facultyName],
+            ["القسم", profile.department ?? "—"],
+            ["الفرقة", profile.year],
+            ["الفصل", profile.semester],
+          ].map(([k, v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", fontFamily: AR, padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
+              <span style={{ color: T.muted }}>{k}</span>
+              <span style={{ fontWeight: 800 }}>{v}</span>
+            </div>
+          ))}
+        </Card>
+        <p style={{ fontFamily: AR, fontWeight: 800 }}>مواد الترم</p>
+        {profile.courses.map((c) => (
+          <Card key={c.id} style={{ marginBottom: 8 }}>
+            <div style={{ fontFamily: AR, fontWeight: 700 }}>{c.name}{c.code ? ` · ${c.code}` : ""}</div>
+          </Card>
+        ))}
+        <Btn variant="ghost" onClick={() => setProfile({ ...profile, courses: withProgress(profile.courses) })}>تحديث التقدم</Btn>
+      </Page>
+    )
+  }
+
+  if (screen === "u-search") {
+    const q = searchQ.trim().toLowerCase()
+    const courseHits = profile.courses.filter((c) => !q || c.name.toLowerCase().includes(q) || (c.code && c.code.toLowerCase().includes(q)))
+    const showTeachers = !q || "مدرس".includes(q) || profile.courses.some((c) => c.name.toLowerCase().includes(q) || (c.code && q.includes(c.code.toLowerCase())))
+    const showLive = !q || "بث".includes(q) || "live".includes(q) || "مراجعة".includes(q)
+    const showPkg = !q || "باقة".includes(q) || profile.courses.some((c) => c.name.toLowerCase().includes(q))
+    return (
+      <Page title="بحث جامعي" onBack={() => go("u-home")}>
+        <Input placeholder="مادة، كود، مدرس، بث، باقة…" value={searchQ} onChange={setSearchQ}/>
+        <div style={{ height: 12 }}/>
+        {courseHits.map((c) => (
+          <Card key={c.id} style={{ marginBottom: 8 }} onClick={() => go("u-course")}>
+            <Chip color={T.brand}>مادة</Chip>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 6 }}>{c.name}{c.code ? ` · ${c.code}` : ""}</div>
+          </Card>
+        ))}
+        {showTeachers && (
+          <Card style={{ marginBottom: 8 }} onClick={() => go("u-teachers")}>
+            <Chip color={T.emerald}>مدرسون</Chip>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 6 }}>مدرسون لـ {profile.courses[0]?.name ?? profile.facultyName}</div>
+          </Card>
+        )}
+        {showPkg && (
+          <Card style={{ marginBottom: 8 }} onClick={() => go("pkg-detail")}>
+            <Chip color={T.amber}>باقة</Chip>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 6 }}>باقة {profile.courses[0]?.name ?? "جامعية"} · {profile.year}</div>
+          </Card>
+        )}
+        {showLive && (
+          <Card style={{ marginBottom: 8 }} onClick={() => go("lives")}>
+            <Chip color={T.ai}>بث</Chip>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 6 }}>Final Revision — {profile.courses[0]?.name ?? "المادة"}</div>
+          </Card>
+        )}
+        {!courseHits.length && !showTeachers && (
+          <EmptyBlock title="لا نتائج" sub="جرّب كود مادة زي CS201 أو اسم المدرس." actions={[{ label: "المعلم الذكي", onClick: () => go("ai-chat") }]}/>
+        )}
+      </Page>
+    )
+  }
+
+  return null
+}
+
+function Booking({ go, uni }: { go: Go; uni?: UniProfile | null }) {
   const [step, setStep] = useState(0)
-  const [sub, setSub] = useState("الرياضيات")
+  const defaultSub = uni?.courses[0]?.name ?? "الرياضيات"
+  const [sub, setSub] = useState(defaultSub)
   const [day, setDay] = useState("السبت 22 أغسطس")
   const [time, setTime] = useState("6:00 م")
+  const subjects = uni ? uni.courses.map((c) => c.name) : ["الرياضيات", "الفيزياء"]
   return (
     <Page title="حجز حصة" onBack={() => step ? setStep(step-1) : go("t-view")} footer={
       <Btn onClick={() => step < 3 ? setStep(step+1) : go("book-pay")}>{step===3 ? "متابعة للدفع" : "التالي"}</Btn>
     }>
-      {step===0 && ["الرياضيات","الفيزياء"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={sub===x} onClick={() => setSub(x)}>{x}</Choice></div>)}
+      {step===0 && subjects.map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={sub===x} onClick={() => setSub(x)}>{x}</Choice></div>)}
       {step===1 && ["السبت 22 أغسطس","الأحد 23 أغسطس"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={day===x} onClick={() => setDay(x)}>{x}</Choice></div>)}
       {step===2 && ["4:00 م","6:00 م","8:00 م"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={time===x} onClick={() => setTime(x)}>{x}</Choice></div>)}
       {step===3 && (
@@ -1913,10 +2706,11 @@ function Booking({ go }: { go: Go }) {
           <div style={{ fontFamily: AR, lineHeight: 2 }}>
             <div>المدرس: أ/ محمد حسن</div>
             <div>المادة: {sub}</div>
+            {uni && <div>الكلية: {uni.facultyName}</div>}
             <div>التاريخ: {day}</div>
             <div>الوقت: {time}</div>
             <div>المدة: 60 دقيقة</div>
-            <div style={{ fontWeight: 800 }}>السعر: 180 ج.م</div>
+            <div style={{ fontWeight: 800 }}>السعر: {uni ? "220" : "180"} ج.م</div>
             <div style={{ fontSize: 13, color: T.muted }}>رسوم المنصة تظهر قبل التأكيد حسب سياسة Teac Teacher</div>
           </div>
         </Card>
@@ -2173,7 +2967,8 @@ function MoreGroup({ title, children }: { title: string; children: ReactNode }) 
   )
 }
 
-function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolean }) {
+function Account({ go, access }: { go: Go; access: MoreAccess }) {
+  const { role } = access
   const studentNav = [
     { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
     { key: "learn", label: "التعلم", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
@@ -2190,10 +2985,10 @@ function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolea
   ]
   const onNav = (k: string) => {
     if (role === "s") {
-      if (k === "home") go("s-home")
-      if (k === "learn") go("learn")
+      if (k === "home") go(access.isUniversity ? "u-home" : "s-home")
+      if (k === "learn") go(access.isUniversity ? "u-home" : "learn")
       if (k === "ai") go("ai-chat")
-      if (k === "tasks") go("tasks")
+      if (k === "tasks") go(access.isUniversity ? "u-calendar" : "tasks")
       if (k === "profile") go("s-account")
     } else if (role === "t") {
       if (k === "home") go("t-home")
@@ -2203,38 +2998,162 @@ function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolea
       if (k === "profile") go("t-account")
     } else parentOnNav(go, k)
   }
-  const name = role === "t" ? "أ/ محمد أحمد" : "أحمد محمد"
-  const sub = role === "t" ? "Teacher Pro · رياضيات" : role === "p" ? "ولي أمر" : "أولى ثانوي · Student Plus"
   const nav = role === "t" ? teacherNav : role === "p" ? parentNavItems() : studentNav
-  const quick = role === "t" ? [
-    { l: "الأرباح", s: "3,850", go: "t-finance" as Screen },
-    { l: "اشتراكي", s: "Pro", go: "t-plans" as Screen },
-    { l: "الباقات", s: "3", go: "pkg-sales" as Screen },
-    { l: "الحجوزات", s: "5", go: "bookings" as Screen },
-  ] : role === "p" ? [
-    { l: "المحفظة", s: "2,400", go: "p-wallet" as Screen },
-    { l: "الاشتراكات", s: "2 نشطة", go: "p-subs" as Screen },
-    { l: "أولادي", s: "2", go: "p-kids" as Screen },
-    { l: "الدعم", s: "—", go: "support" as Screen },
-  ] : [
-    { l: "المحفظة", s: "180", go: "s-wallet" as Screen },
-    { l: "اشتراكي", s: "Plus", go: "s-plans" as Screen },
-    { l: "باقاتي", s: "1", go: "s-pkgs" as Screen },
-    { l: "حجوزاتي", s: "2", go: "bookings" as Screen },
-  ]
+
+  type Row = { id: string; group: string; g: number; i: number; title: string; sub?: string; icon: ReactNode; to: Screen; value?: string; badge?: string }
+  const rows: Row[] = []
+  const add = (row: Row, on: boolean) => { if (on) rows.push(row) }
+
+  if (role === "s") {
+    if (access.isUniversity) {
+      add({ id: "uni", group: "دراستي", g: 1, i: 1, title: "الجامعة والكلية", sub: access.uniLabel, icon: Ic.classes, to: "u-edit" }, true)
+      add({ id: "courses", group: "دراستي", g: 1, i: 2, title: "موادي", icon: Ic.book, to: "u-home" }, true)
+      add({ id: "progress", group: "دراستي", g: 1, i: 3, title: "تقدمي", icon: Ic.task, to: "u-home" }, true)
+      add({ id: "files", group: "دراستي", g: 1, i: 4, title: "ملفاتي", icon: Ic.attach, to: "u-course" }, true)
+      add({ id: "ai", group: "دراستي", g: 1, i: 5, title: "المعلم الذكي", icon: Ic.robot, to: "ai-chat" }, true)
+      add({ id: "teachers", group: "دراستي", g: 1, i: 6, title: "المدرسين", icon: Ic.students, to: "u-teachers" }, true)
+      add({ id: "book", group: "الحجوزات", g: 2, i: 1, title: "حجوزاتي", icon: Ic.task, to: "bookings" }, access.book)
+      add({ id: "pkgs", group: "الحجوزات", g: 2, i: 2, title: "الباقات", icon: Ic.classes, to: "s-pkgs" }, access.hasPackage)
+      add({ id: "wallet", group: "المدفوعات", g: 3, i: 1, title: "المحفظة", value: "180 ج.م", icon: Ic.wallet, to: "s-wallet" }, access.wallet)
+      add({ id: "tx", group: "المدفوعات", g: 3, i: 2, title: "المعاملات", icon: Ic.task, to: "tx" }, access.pay)
+      add({ id: "sub", group: "المدفوعات", g: 3, i: 3, title: "الاشتراكات", icon: Ic.sparkle, to: "s-plans" }, access.sub)
+      add({ id: "inv", group: "المدفوعات", g: 3, i: 4, title: "الفواتير", icon: Ic.book, to: "invoices" }, access.pay)
+      add({ id: "profile", group: "الحساب", g: 4, i: 1, title: "الملف الشخصي", icon: Ic.user, to: "edit-profile" }, true)
+      add({ id: "guard", group: "ولي الأمر", g: 4, i: 2, title: access.hasGuardian ? "صلاحيات ولي الأمر" : "ربط ولي أمر (اختياري)", sub: access.hasGuardian ? "صلاحيات محدودة حسب موافقتك" : "مخفي افتراضيًا للبالغين", icon: Ic.family, to: "guardian" }, FEATURES.guardian)
+      add({ id: "notifs", group: "الحساب", g: 4, i: 3, title: "الإشعارات", icon: Ic.bell, to: "notifs" }, true)
+      add({ id: "sec", group: "الحساب", g: 4, i: 4, title: "الأمان", icon: Ic.lock, to: "security" }, true)
+      add({ id: "priv", group: "الحساب", g: 4, i: 5, title: "الخصوصية", icon: Ic.lock, to: "privacy" }, true)
+      add({ id: "help", group: "المساعدة", g: 5, i: 1, title: "مركز المساعدة", icon: Ic.sparkle, to: "help-center" }, true)
+      add({ id: "sup", group: "المساعدة", g: 5, i: 2, title: "تواصل معنا", icon: Ic.send, to: "support" }, true)
+    } else {
+      add({ id: "progress", group: "التعلم", g: 1, i: 1, title: "تقدمي", icon: Ic.book, to: "learn" }, true)
+      add({ id: "ai", group: "التعلم", g: 1, i: 2, title: "المعلم الذكي", icon: Ic.robot, to: "ai-chat" }, true)
+      add({ id: "files", group: "التعلم", g: 1, i: 3, title: "ملفاتي", icon: Ic.attach, to: "learn" }, true)
+      add({ id: "teachers", group: "التعلم", g: 1, i: 4, title: "مدرسيني", sub: "أ/ محمد أحمد", icon: Ic.students, to: "t-view" }, access.hasTeacher)
+      add({ id: "find", group: "التعلم", g: 1, i: 4, title: "ابحث عن مدرس", sub: "مدرسين موثّقين لموادك", icon: Ic.students, to: "find" }, !access.hasTeacher)
+      add({ id: "book", group: "التعلم", g: 1, i: 5, title: "حجوزاتي", icon: Ic.task, to: "bookings" }, access.book)
+      add({ id: "chat", group: "التعلم", g: 1, i: 6, title: "المحادثات", icon: Ic.send, to: "chats" }, access.chat)
+      add({ id: "pkgs", group: "التعلم", g: 1, i: 7, title: "باقاتي", icon: Ic.classes, to: "s-pkgs" }, access.hasPackage)
+      add({ id: "wallet", group: "المدفوعات", g: 2, i: 1, title: "المحفظة", value: "180 ج.م", icon: Ic.wallet, to: "s-wallet" }, access.wallet)
+      add({ id: "tx", group: "المدفوعات", g: 2, i: 2, title: "المعاملات", icon: Ic.task, to: "tx" }, access.pay)
+      add({ id: "pm", group: "المدفوعات", g: 2, i: 3, title: "طرق الدفع", icon: Ic.wallet, to: "pay-methods" }, access.pay)
+      add({ id: "inv", group: "المدفوعات", g: 2, i: 4, title: "الفواتير", icon: Ic.book, to: "invoices" }, access.pay)
+      add({ id: "sub", group: "المدفوعات", g: 2, i: 0, title: "اشتراكي", badge: "Plus", icon: Ic.sparkle, to: "s-plans" }, access.sub)
+      add({ id: "profile", group: "الحساب", g: 3, i: 1, title: "الملف الشخصي", icon: Ic.user, to: "edit-profile" }, true)
+      add({ id: "guard", group: "الحساب", g: 3, i: 2, title: "ولي الأمر", sub: "مرتبط بالحساب ✓", icon: Ic.family, to: "guardian" }, access.hasGuardian && FEATURES.guardian)
+      add({ id: "notifs", group: "الحساب", g: 3, i: 3, title: "الإشعارات", icon: Ic.bell, to: "notifs" }, true)
+      add({ id: "sec", group: "الحساب", g: 3, i: 4, title: "الأمان", icon: Ic.lock, to: "security" }, true)
+      add({ id: "priv", group: "الحساب", g: 3, i: 5, title: "الخصوصية", icon: Ic.lock, to: "privacy" }, true)
+      add({ id: "help", group: "المساعدة", g: 4, i: 1, title: "مركز المساعدة", icon: Ic.sparkle, to: "help-center" }, true)
+      add({ id: "sup", group: "المساعدة", g: 4, i: 2, title: "تواصل معنا", icon: Ic.send, to: "support" }, true)
+    }
+  }
+
+  if (role === "t") {
+    const teachG = access.withdraw && access.hasStudents ? 2 : 1
+    const moneyG = access.withdraw && access.hasStudents ? 1 : 2
+    add({ id: "class", group: "التدريس", g: teachG, i: 1, title: "الفصول", icon: Ic.classes, to: "class" }, true)
+    add({ id: "st", group: "التدريس", g: teachG, i: 2, title: "الطلاب", icon: Ic.students, to: "class-students" }, true)
+    add({ id: "ai", group: "التدريس", g: teachG, i: 3, title: "مساعد المدرس الذكي", icon: Ic.robot, to: "t-ai" }, true)
+    add({ id: "price", group: "التدريس", g: teachG, i: 4, title: "الأسعار والخدمات", icon: Ic.book, to: "pricing" }, access.verified)
+    add({ id: "av", group: "التدريس", g: teachG, i: 5, title: "المواعيد", icon: Ic.task, to: "availability" }, access.verified)
+    add({ id: "book", group: "التدريس", g: teachG, i: 6, title: "الحجوزات", icon: Ic.bell, to: "bookings" }, access.book)
+    add({ id: "chat", group: "التدريس", g: teachG, i: 7, title: "المحادثات", icon: Ic.send, to: "chats" }, access.chat)
+    add({ id: "mkt", group: "التدريس", g: teachG, i: 8, title: "ملفي في سوق المدرسين", icon: Ic.user, to: "t-view" }, access.marketplace)
+    add({ id: "live", group: "التدريس", g: teachG, i: 9, title: "البث المباشر", icon: Ic.sparkle, to: "lives" }, access.live)
+    add({ id: "pkgs", group: "التدريس", g: teachG, i: 10, title: "باقاتي", icon: Ic.classes, to: "pkg-sales" }, access.sellPackages)
+    add({ id: "earn", group: "المالية", g: moneyG, i: 1, title: "أرباحي", icon: Ic.wallet, to: "t-finance" }, access.withdraw)
+    add({ id: "tx", group: "المالية", g: moneyG, i: 2, title: "المعاملات", icon: Ic.task, to: "t-tx" }, access.withdraw)
+    add({ id: "wo", group: "المالية", g: moneyG, i: 3, title: "طرق السحب", icon: Ic.wallet, to: "payout-add" }, access.withdraw)
+    add({ id: "inv", group: "المالية", g: moneyG, i: 4, title: "الفواتير", icon: Ic.book, to: "invoices" }, access.withdraw)
+    add({ id: "sub", group: "الحساب", g: 3, i: 0, title: "اشتراكي", badge: access.plan === "pro" ? "Pro" : undefined, icon: Ic.sparkle, to: "t-plans" }, true)
+    add({ id: "profile", group: "الحساب", g: 3, i: 1, title: "الملف الشخصي", icon: Ic.user, to: "edit-profile" }, true)
+    add({ id: "ver", group: "الحساب", g: 3, i: 2, title: access.verified ? "حالة التوثيق" : "توثيق الحساب", icon: Ic.check, to: access.verified ? "t-verified" : "t-pending" }, true)
+    add({ id: "notifs", group: "الحساب", g: 3, i: 3, title: "الإشعارات", icon: Ic.bell, to: "notifs" }, true)
+    add({ id: "sec", group: "الحساب", g: 3, i: 4, title: "الأمان", icon: Ic.lock, to: "security" }, true)
+    add({ id: "priv", group: "الحساب", g: 3, i: 5, title: "الخصوصية", icon: Ic.lock, to: "privacy" }, true)
+    add({ id: "help", group: "الدعم", g: 4, i: 1, title: "المساعدة", icon: Ic.sparkle, to: "help-center" }, true)
+    add({ id: "sup", group: "الدعم", g: 4, i: 2, title: "تواصل معنا", icon: Ic.send, to: "support" }, true)
+    add({ id: "rep", group: "الدعم", g: 4, i: 3, title: "الإبلاغ عن مشكلة", icon: Ic.task, to: "report-user" }, true)
+  }
+
+  if (role === "p") {
+    add({ id: "add", group: "الأسرة", g: 1, i: 1, title: "إضافة طالب", icon: Ic.plus, to: "p-create-child" }, !access.hasKids)
+    add({ id: "link", group: "الأسرة", g: 1, i: 2, title: "ربط حساب طالب", icon: Ic.family, to: "p-link" }, !access.hasKids)
+    add({ id: "kids", group: "أولادي", g: 1, i: 1, title: "إدارة الأبناء", icon: Ic.family, to: "p-kids" }, access.hasKids)
+    add({ id: "rep", group: "أولادي", g: 1, i: 2, title: "التقارير الدراسية", icon: Ic.book, to: "p-report" }, access.childAcademic)
+    add({ id: "book", group: "أولادي", g: 1, i: 3, title: "الحجوزات", icon: Ic.task, to: "p-bookings" }, access.book && access.hasKids)
+    add({ id: "tch", group: "أولادي", g: 1, i: 4, title: "المدرسون", icon: Ic.students, to: "p-teachers" }, access.childTeachers)
+    add({ id: "pkgs", group: "أولادي", g: 1, i: 5, title: "الباقات", icon: Ic.classes, to: "p-pkgs" }, access.childPackages)
+    add({ id: "appr", group: "أولادي", g: 1, i: 0, title: "طلبات الموافقة", badge: access.pendingApprovals ? String(access.pendingApprovals) : undefined, icon: Ic.bell, to: "p-approve" }, access.approve)
+    add({ id: "pay", group: "المالية", g: 2, i: 1, title: "المدفوعات", icon: Ic.wallet, to: "p-pay" }, access.childFinance)
+    add({ id: "tx", group: "المالية", g: 2, i: 2, title: "المعاملات", icon: Ic.task, to: "p-tx" }, access.childFinance)
+    add({ id: "sub", group: "المالية", g: 2, i: 3, title: "الاشتراكات", icon: Ic.sparkle, to: "p-subs" }, access.childFinance)
+    add({ id: "inv", group: "المالية", g: 2, i: 4, title: "الفواتير", icon: Ic.book, to: "invoices" }, access.childFinance)
+    add({ id: "wal", group: "المالية", g: 2, i: 5, title: "المحفظة العائلية", value: "2,400 ج.م", icon: Ic.wallet, to: "p-wallet" }, access.wallet)
+    add({ id: "profile", group: "الحساب", g: 3, i: 1, title: "الملف الشخصي", icon: Ic.user, to: "edit-profile" }, true)
+    add({ id: "notifs", group: "الحساب", g: 3, i: 2, title: "الإشعارات", icon: Ic.bell, to: "p-notifs" }, true)
+    add({ id: "sec", group: "الحساب", g: 3, i: 3, title: "الأمان", icon: Ic.lock, to: "security" }, true)
+    add({ id: "priv", group: "الحساب", g: 3, i: 4, title: "الخصوصية", icon: Ic.lock, to: "privacy" }, true)
+    add({ id: "help", group: "الدعم", g: 4, i: 1, title: "المساعدة", icon: Ic.sparkle, to: "help-center" }, true)
+    add({ id: "sup", group: "الدعم", g: 4, i: 2, title: "تواصل معنا", icon: Ic.send, to: access.hasKids ? "support" : "help-center" }, access.hasKids)
+  }
+
+  const groups = Array.from(new Map(rows.map((r) => [r.group, r.g])).entries())
+    .sort((a, b) => a[1] - b[1])
+    .map(([title]) => ({ title, items: rows.filter((r) => r.group === title).sort((a, b) => a.i - b.i) }))
+    .filter((g) => g.items.length > 0)
+
+  type Q = { l: string; s: string; to: Screen; p: number }
+  const quick: Q[] = []
+  if (role === "s") {
+    quick.push({ l: "تقدمي", s: "65%", to: "learn", p: 1 })
+    if (access.hasTeacher) quick.push({ l: "مدرسيني", s: "1", to: "t-view", p: 2 })
+    else quick.push({ l: "ابحث", s: "مدرس", to: "find", p: 2 })
+    if (access.hasPackage) quick.push({ l: "باقاتي", s: "1", to: "s-pkgs", p: 3 })
+    if (access.sub) quick.push({ l: "اشتراكي", s: "Plus", to: "s-plans", p: 4 })
+    else quick.push({ l: "المعلم الذكي", s: "AI", to: "ai-chat", p: 4 })
+  } else if (role === "t") {
+    if (access.withdraw) {
+      quick.push({ l: "متاح للسحب", s: "3,850", to: "t-finance", p: 1 })
+      if (access.book) quick.push({ l: "الحجوزات", s: "5", to: "bookings", p: 2 })
+      if (access.sellPackages) quick.push({ l: "الباقات", s: "3", to: "pkg-sales", p: 3 })
+      quick.push({ l: "اشتراكي", s: access.plan === "pro" ? "Pro" : "مجاني", to: "t-plans", p: 4 })
+    } else {
+      quick.push({ l: "الفصول", s: access.hasStudents ? "3" : "0", to: "class", p: 1 })
+      quick.push({ l: "الطلاب", s: access.hasStudents ? "48" : "0", to: "class-students", p: 2 })
+      quick.push({ l: "AI", s: "جهّز", to: "t-ai", p: 3 })
+      quick.push({ l: "التوثيق", s: access.verified ? "✓" : "ابدأ", to: access.verified ? "t-verified" : "t-pending", p: 4 })
+    }
+  } else if (access.childFinance) {
+    quick.push({ l: "أولادي", s: "2", to: "p-kids", p: 1 })
+    quick.push({ l: "المدفوعات", s: "3,850", to: "p-pay", p: 2 })
+    if (access.approve) quick.push({ l: "الموافقات", s: String(access.pendingApprovals), to: "p-approve", p: 3 })
+    quick.push({ l: "التنبيهات", s: "7", to: "p-notifs", p: 4 })
+  } else if (access.hasKids) {
+    quick.push({ l: "أولادي", s: "2", to: "p-kids", p: 1 })
+    if (access.childAcademic) quick.push({ l: "التقارير", s: "أسبوعي", to: "p-report", p: 2 })
+    if (access.childTeachers) quick.push({ l: "المدرسون", s: "1", to: "p-teachers", p: 3 })
+    quick.push({ l: "التنبيهات", s: "3", to: "p-notifs", p: 4 })
+  } else {
+    quick.push({ l: "إضافة طالب", s: "ابدأ", to: "p-add-child", p: 1 })
+    quick.push({ l: "ربط حساب", s: "كود", to: "p-link", p: 2 })
+    quick.push({ l: "التنبيهات", s: "—", to: "p-notifs", p: 3 })
+  }
+  const quickShow = quick.sort((a, b) => a.p - b.p).slice(0, 4)
+
   return (
     <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
       <StatusBar/>
       <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "56px 20px 28px", minHeight: 0 }}>
         <Card style={{ marginBottom: 16, padding: 16 }} onClick={() => go("edit-profile")}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <Avatar name={name} size={56} bg={role === "t" ? T.emerald : T.brand}/>
+            <Avatar name={access.name} size={56} bg={role === "t" ? T.emerald : T.brand}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 18, display: "flex", gap: 6, alignItems: "center" }}>
-                {name} {role === "t" && verified && <VerifiedBadge small/>}
+                {access.name} {role === "t" && access.verified && <VerifiedBadge small/>}
               </div>
-              <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 2 }}>{sub}</div>
-              <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>01012345678</div>
+              <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 2 }}>{access.subtitle}</div>
             </div>
           </div>
           <button onClick={(e) => { e.stopPropagation(); go("edit-profile") }} style={{
@@ -2242,106 +3161,33 @@ function Account({ go, role, verified }: { go: Go; role: Role; verified?: boolea
             background: T.brandLight, color: T.brand, fontFamily: AR, fontWeight: 800, cursor: "pointer",
           }}>عرض الملف الشخصي</button>
         </Card>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 28 }}>
-          {quick.map((q) => (
-            <button key={q.l} onClick={() => go(q.go)} style={{
-              textAlign: "right", border: `1px solid ${T.border}`, background: T.card, borderRadius: 16,
-              padding: "12px 12px", cursor: "pointer", boxShadow: S.card, minHeight: 72,
-            }}>
-              <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{q.l}</div>
-              <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 16, color: T.text, marginTop: 4 }}>{q.s}</div>
-            </button>
-          ))}
-        </div>
-        {role === "p" && <>
-          <MoreGroup title="الأسرة والتعليم">
-            <MoreRow icon={Ic.family} title="أولادي" sub="إدارة الحسابات المرتبطة" onClick={() => go("p-kids")}/>
-            <MoreRow icon={Ic.book} title="التقارير الدراسية" sub="التقدم والتقرير الأسبوعي" onClick={() => go("p-report")}/>
-            <MoreRow icon={Ic.students} title="المدرسون" sub="المدرسون المرتبطون بأولادك" onClick={() => go("p-teachers")}/>
-            <MoreRow icon={Ic.task} title="الحجوزات" sub="القادمة والسابقة" onClick={() => go("p-bookings")}/>
-            <MoreRow icon={Ic.classes} title="الباقات" sub="باقات أولادي النشطة" onClick={() => go("p-pkgs")}/>
+        {quickShow.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 28 }}>
+            {quickShow.map((q) => (
+              <button key={q.l} onClick={() => go(q.to)} style={{
+                textAlign: "right", border: `1px solid ${T.border}`, background: T.card, borderRadius: 16,
+                padding: "12px 12px", cursor: "pointer", boxShadow: S.card, minHeight: 72,
+              }}>
+                <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{q.l}</div>
+                <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 16, color: T.text, marginTop: 4 }}>{q.s}</div>
+              </button>
+            ))}
+          </div>
+        )}
+        {access.upgradePro && (
+          <Card style={{ marginBottom: 20, background: T.aiXLight, border: `1px solid ${T.ai}22` }} onClick={() => go("t-plans")}>
+            <div style={{ fontFamily: AR, fontWeight: 900 }}>الباقات والبث المباشر</div>
+            <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, marginTop: 4 }}>متاحة في Teacher Pro</div>
+            <Btn variant="ghost" onClick={() => go("t-plans")}>اعرف أكتر</Btn>
+          </Card>
+        )}
+        {groups.map((g) => (
+          <MoreGroup key={g.title} title={g.title}>
+            {g.items.map((r) => (
+              <MoreRow key={r.id} icon={r.icon} title={r.title} sub={r.sub} value={r.value} badge={r.badge} onClick={() => go(r.to)}/>
+            ))}
           </MoreGroup>
-          <MoreGroup title="المالية والاشتراكات">
-            <MoreRow icon={Ic.wallet} title="المحفظة العائلية" sub="إدارة الرصيد والمدفوعات" value="2,400 ج.م" onClick={() => go("p-wallet")}/>
-            <MoreRow icon={Ic.task} title="المعاملات" sub="سجل المدفوعات والاسترداد" onClick={() => go("p-tx")}/>
-            <MoreRow icon={Ic.sparkle} title="الاشتراكات" sub="خطط أولادك وAI" badge="2 نشطة" onClick={() => go("p-subs")}/>
-            <MoreRow icon={Ic.wallet} title="طرق الدفع" onClick={() => go("pay-methods")}/>
-            <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
-            <MoreRow icon={Ic.lock} title="حدود الإنفاق" sub="مصروف كل طالب" onClick={() => go("p-spend")}/>
-          </MoreGroup>
-          <MoreGroup title="الحساب والأمان">
-            <MoreRow icon={Ic.user} title="البيانات الشخصية" onClick={() => go("edit-profile")}/>
-            <MoreRow icon={Ic.lock} title="الأمان" onClick={() => go("security")}/>
-            <MoreRow icon={Ic.lock} title="الخصوصية" onClick={() => go("privacy")}/>
-            <MoreRow icon={Ic.classes} title="الأجهزة المسجل عليها الحساب" onClick={() => go("devices")}/>
-            <MoreRow icon={Ic.bell} title="الإشعارات" onClick={() => go("p-notifs")}/>
-          </MoreGroup>
-          <MoreGroup title="المساعدة">
-            <MoreRow icon={Ic.sparkle} title="مركز المساعدة" onClick={() => go("help-center")}/>
-            <MoreRow icon={Ic.send} title="تواصل مع الدعم" onClick={() => go("support")}/>
-            <MoreRow icon={Ic.task} title="الإبلاغ عن مشكلة" onClick={() => go("report-user")}/>
-            <MoreRow icon={Ic.book} title="الشروط والسياسات" onClick={() => go("policies")}/>
-          </MoreGroup>
-        </>}
-        {role === "t" && <>
-          <MoreGroup title="إدارة عملي">
-            <MoreRow icon={Ic.wallet} title="المالية" sub="الأرصدة والمستحقات" onClick={() => go("t-finance")}/>
-            <MoreRow icon={Ic.wallet} title="أرباحي" onClick={() => go("t-finance")}/>
-            <MoreRow icon={Ic.task} title="المعاملات" onClick={() => go("t-tx")}/>
-            <MoreRow icon={Ic.classes} title="الباقات" onClick={() => go("pkg-sales")}/>
-            <MoreRow icon={Ic.book} title="الأسعار والخدمات" onClick={() => go("pricing")}/>
-            <MoreRow icon={Ic.task} title="المواعيد" onClick={() => go("availability")}/>
-            <MoreRow icon={Ic.sparkle} title="البثوث" onClick={() => go("lives")}/>
-            <MoreRow icon={Ic.bell} title="الحجوزات" onClick={() => go("bookings")}/>
-          </MoreGroup>
-          <MoreGroup title="Teac Teacher">
-            <MoreRow icon={Ic.sparkle} title="اشتراكي" badge="Pro" onClick={() => go("t-plans")}/>
-            <MoreRow icon={Ic.robot} title="استخدام AI" onClick={() => go("teac-ai")}/>
-            <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
-          </MoreGroup>
-          <MoreGroup title="الحساب">
-            <MoreRow icon={Ic.user} title="الملف الشخصي" onClick={() => go("edit-profile")}/>
-            <MoreRow icon={Ic.check} title="توثيق الهوية" onClick={() => go(verified ? "t-verified" : "t-pending")}/>
-            <MoreRow icon={Ic.wallet} title="طرق السحب" onClick={() => go("payout-add")}/>
-            <MoreRow icon={Ic.lock} title="الأمان" onClick={() => go("security")}/>
-            <MoreRow icon={Ic.lock} title="الخصوصية" onClick={() => go("privacy")}/>
-            <MoreRow icon={Ic.bell} title="الإشعارات" onClick={() => go("notifs")}/>
-          </MoreGroup>
-          <MoreGroup title="الدعم">
-            <MoreRow icon={Ic.sparkle} title="المساعدة" onClick={() => go("help-center")}/>
-            <MoreRow icon={Ic.send} title="تواصل معنا" onClick={() => go("support")}/>
-            <MoreRow icon={Ic.task} title="الإبلاغ عن مشكلة" onClick={() => go("report-user")}/>
-          </MoreGroup>
-        </>}
-        {role === "s" && <>
-          <MoreGroup title="التعلم">
-            <MoreRow icon={Ic.students} title="مدرسيني" onClick={() => go("find")}/>
-            <MoreRow icon={Ic.task} title="حجوزاتي" onClick={() => go("bookings")}/>
-            <MoreRow icon={Ic.classes} title="باقاتي" onClick={() => go("s-pkgs")}/>
-            <MoreRow icon={Ic.book} title="تقدمي" onClick={() => go("learn")}/>
-            <MoreRow icon={Ic.attach} title="الملفات المحفوظة" onClick={() => go("learn")}/>
-          </MoreGroup>
-          <MoreGroup title="المدفوعات">
-            <MoreRow icon={Ic.wallet} title="المحفظة" value="180 ج.م" onClick={() => go("s-wallet")}/>
-            <MoreRow icon={Ic.task} title="المعاملات" onClick={() => go("tx")}/>
-            <MoreRow icon={Ic.sparkle} title="اشتراكي" badge="Plus" onClick={() => go("s-plans")}/>
-            <MoreRow icon={Ic.robot} title="اشتراك AI" onClick={() => go("teac-ai")}/>
-            <MoreRow icon={Ic.wallet} title="طرق الدفع" onClick={() => go("pay-methods")}/>
-            <MoreRow icon={Ic.book} title="الفواتير" onClick={() => go("invoices")}/>
-          </MoreGroup>
-          <MoreGroup title="الحساب">
-            <MoreRow icon={Ic.user} title="الملف الشخصي" onClick={() => go("edit-profile")}/>
-            <MoreRow icon={Ic.family} title="ولي الأمر" sub="مرتبط بالحساب ✓" onClick={() => go("guardian")}/>
-            <MoreRow icon={Ic.bell} title="الإشعارات" onClick={() => go("notifs")}/>
-            <MoreRow icon={Ic.lock} title="الأمان" onClick={() => go("security")}/>
-            <MoreRow icon={Ic.lock} title="الخصوصية" onClick={() => go("privacy")}/>
-          </MoreGroup>
-          <MoreGroup title="الدعم">
-            <MoreRow icon={Ic.sparkle} title="المساعدة" onClick={() => go("help-center")}/>
-            <MoreRow icon={Ic.send} title="تواصل معنا" onClick={() => go("support")}/>
-            <MoreRow icon={Ic.task} title="الإبلاغ عن مشكلة" onClick={() => go("report-user")}/>
-          </MoreGroup>
-        </>}
+        ))}
         <button onClick={() => go("logout")} style={{
           width: "100%", minHeight: 52, marginTop: 8, borderRadius: 16,
           border: `1.5px solid ${T.border}`, background: "transparent",
@@ -2941,8 +3787,8 @@ function ParentFlow({ screen, go, ctx }: {
     setKidId: (id: string) => void
     hasKids: boolean
     setHasKids: (v: boolean) => void
-    role: Role | null
-    verified?: boolean
+    access?: MoreAccess
+    role?: Role | null
   }
 }) {
   const kid = ctx.kids.find((k) => k.id === ctx.kidId) ?? ctx.kids[0]
@@ -2966,7 +3812,7 @@ function ParentFlow({ screen, go, ctx }: {
   if (screen === "p-kids") return <ParentKids go={go} kids={ctx.kids}/>
   if (screen === "p-pay") return <ParentPay go={go} kidId={ctx.kidId} kids={ctx.kids} setKidId={ctx.setKidId}/>
   if (screen === "p-notifs") return <ParentNotifs go={go}/>
-  if (screen === "p-more") return <Account go={go} role="p" verified={ctx.verified}/>
+  if (screen === "p-more") return ctx.access ? <Account go={go} access={ctx.access}/> : null
   if (screen === "p-child") return (
     <Page title={kid?.name ?? "الطالب"} onBack={() => go("p-home")}>
       <ProgressRing pct={kid?.pct ?? 0} size={88}/>
@@ -3242,11 +4088,29 @@ function ExtraFlow({ screen, go, ctx }: {
     setKidId: (id: string) => void
     hasKids: boolean
     setHasKids: (v: boolean) => void
+    access?: MoreAccess
+    uni?: UniProfile | null
+    setUni?: (p: UniProfile) => void
+    setDraft?: (d: UniDraft | ((p: UniDraft) => UniDraft)) => void
+    activeCourseId?: string | null
   }
 }) {
+  if (screen === "t-uni-spec") return <TeacherUniSpec go={go}/>
+  if (ctx.uni && ["u-exam", "u-calendar", "u-edit", "u-search"].includes(screen) && ctx.setUni && ctx.setDraft) {
+    return (
+      <UniversityExtras
+        screen={screen}
+        go={go}
+        profile={ctx.uni}
+        setProfile={ctx.setUni}
+        setDraft={ctx.setDraft}
+        activeCourseId={ctx.activeCourseId ?? null}
+      />
+    )
+  }
   if (screen === "s-approve-sent") return (
-    <Page title="طلب الموافقة" onBack={() => go("s-home")} footer={<Btn onClick={() => go("s-home")}>العودة</Btn>}>
-      <SuccessBlock title="تم إرسال طلب موافقة لولي الأمر" sub="باقة رياضيات — 2,650 ج.م · هتوصلك نتيجة الموافقة." cta="العودة" onCta={() => go("s-home")}/>
+    <Page title="طلب الموافقة" onBack={() => go(ctx.uni ? "u-home" : "s-home")} footer={<Btn onClick={() => go(ctx.uni ? "u-home" : "s-home")}>العودة</Btn>}>
+      <SuccessBlock title="تم إرسال طلب موافقة لولي الأمر" sub="باقة رياضيات — 2,650 ج.م · هتوصلك نتيجة الموافقة." cta="العودة" onCta={() => go(ctx.uni ? "u-home" : "s-home")}/>
     </Page>
   )
   const parentUi = ParentFlow({ screen, go, ctx })
@@ -3354,10 +4218,12 @@ function ExtraFlow({ screen, go, ctx }: {
   if (screen === "live-create") return (
     <Page title="إنشاء بث مباشر" onBack={() => go("t-create")} footer={<Btn onClick={() => go("live-price")}>إنشاء البث</Btn>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <Input placeholder="عنوان البث" value="مراجعة ليلة الامتحان — الرياضيات"/>
-        <Input placeholder="المادة" value="رياضيات"/>
-        <Input placeholder="الصف الدراسي" value="أولى ثانوي"/>
-        <Input placeholder="وصف البث" value="مراجعة مركزة على أهم أفكار الامتحان"/>
+        <Input placeholder="عنوان البث" value="Final Revision — Calculus 2"/>
+        <Input placeholder="المادة / الكود" value="Calculus 2"/>
+        <Input placeholder="الكلية المستهدفة" value="كلية الهندسة"/>
+        <Input placeholder="الفرقة" value="الفرقة الثانية"/>
+        <Input placeholder="الجامعة (اختياري)" value="جامعة محددة أو جميع المؤهلين"/>
+        <Input placeholder="وصف البث" value="مراجعة مركزة قبل الفاينال"/>
         <Input placeholder="تاريخ البث" value="22 أغسطس 2026"/>
         <Input placeholder="وقت البداية" value="8:00 م"/>
         <Input placeholder="مدة متوقعة" value="90 دقيقة"/>
@@ -3365,7 +4231,7 @@ function ExtraFlow({ screen, go, ctx }: {
       <div style={{ height: 10 }}/>
       {["مجاني","ضمن باقة","مدفوع"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="مدفوع"} onClick={() => {}}>{x}</Choice></div>)}
       <p style={{ fontFamily: AR, fontWeight: 700 }}>الجمهور</p>
-      {["فصل معين","طلاب محددين","جميع متابعي المدرس","عام"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="فصل معين"} onClick={() => {}}>{x}</Choice></div>)}
+      {["جامعة محددة","كلية محددة","مادة محددة","كل الطلاب الجامعيين المؤهلين","فصل مدرسي","عام"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={x==="مادة محددة"} onClick={() => {}}>{x}</Choice></div>)}
     </Page>
   )
   if (screen === "live-price") return (
@@ -3380,24 +4246,36 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "lives") return (
-    <Page title="البثوث" onBack={() => go("t-account")}>
+    <Page title="البثوث" onBack={() => go(ctx.role === "t" ? "t-account" : ctx.uni ? "u-home" : "s-home")}>
       <Card style={{ marginBottom: 10 }} onClick={() => go("live-detail")}>
         <Chip filled>LIVE قريباً</Chip>
-        <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 8 }}>مراجعة ليلة الامتحان</div>
-        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>22 أغسطس · 8 م · 75 ج.م · 50 مسجّل</div>
+        <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 8 }}>
+          {ctx.uni ? `Final Revision — ${ctx.uni.courses[0]?.name ?? "Calculus 2"}` : "مراجعة ليلة الامتحان"}
+        </div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>
+          {ctx.uni
+            ? `${ctx.uni.facultyName} · ${ctx.uni.year} · 22 أغسطس · 8 م · 75 ج.م`
+            : "22 أغسطس · 8 م · 75 ج.م · 50 مسجّل"}
+        </div>
       </Card>
-      <Btn onClick={() => go("live-create")}>إنشاء بث جديد</Btn>
+      {ctx.role === "t" && <Btn onClick={() => go("live-create")}>إنشاء بث جديد</Btn>}
     </Page>
   )
   if (screen === "live-detail") return (
-    <Page title="تفاصيل البث" onBack={() => go(ctx.role==="t"?"lives":"t-view")} footer={<Btn onClick={() => go("live-wait")}>احجز مكانك</Btn>}>
+    <Page title="تفاصيل البث" onBack={() => go(ctx.role==="t"?"lives":"lives")} footer={<Btn onClick={() => go("live-wait")}>احجز مكانك</Btn>}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
         <Avatar name="محمد حسن" size={44} bg={T.emerald}/>
         <div style={{ fontFamily: AR, fontWeight: 800 }}>أ/ محمد حسن <VerifiedBadge small/></div>
       </div>
-      <h2 style={{ fontFamily: AR }}>مراجعة ليلة الامتحان — الرياضيات</h2>
+      <h2 style={{ fontFamily: AR }}>
+        {ctx.uni ? `Final Revision — ${ctx.uni.courses[0]?.name ?? "Calculus 2"}` : "مراجعة ليلة الامتحان — الرياضيات"}
+      </h2>
       <Card>
-        <div style={{ fontFamily: AR, lineHeight: 2 }}>المادة: رياضيات · الصف: أولى ثانوي · 22 أغسطس 8:00 م · 90 دقيقة · المسجّلون: 50</div>
+        <div style={{ fontFamily: AR, lineHeight: 2 }}>
+          {ctx.uni
+            ? `الكلية: ${ctx.uni.facultyName} · الفرقة: ${ctx.uni.year} · المادة: ${ctx.uni.courses[0]?.name ?? "—"} · 22 أغسطس 8:00 م · 90 دقيقة`
+            : "المادة: رياضيات · الصف: أولى ثانوي · 22 أغسطس 8:00 م · 90 دقيقة · المسجّلون: 50"}
+        </div>
       </Card>
       <Chip color={T.emerald}>مشمول في باقتك ✓</Chip>
       <div style={{ fontFamily: LAT, fontWeight: 800, marginTop: 8 }}>75 ج.م إن لم تكن الباقة سارية</div>
@@ -3687,7 +4565,7 @@ function ExtraFlow({ screen, go, ctx }: {
       <p style={{ fontFamily: AR, color: T.sub }}>البطاقة مرفوضة أو الرصيد غير كافٍ أو في مشكلة اتصال.</p>
     </Page>
   )
-  if (screen === "tx") return <Transactions go={go}/>
+  if (screen === "tx") return <Transactions go={go} uni={ctx.uni}/>
   if (screen === "ents") return (
     <Entitlements
       go={go}
@@ -3833,19 +4711,27 @@ function ExtraFlow({ screen, go, ctx }: {
   if (screen === "pkg-create") return (
     <Page title="إنشاء باقة" onBack={() => go("t-account")} footer={<Btn onClick={() => go("pkg-list")}>إنشاء الباقة</Btn>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <Input placeholder="اسم الباقة" value="باقة 8 حصص رياضيات"/>
+        <Input placeholder="اسم الباقة" value="باقة Data Structures"/>
+        <Input placeholder="الكلية المستهدفة" value="حاسبات ومعلومات"/>
+        <Input placeholder="القسم / التخصص" value="علوم حاسب"/>
+        <Input placeholder="الفرقة" value="الفرقة الثانية"/>
+        <Input placeholder="المادة" value="Data Structures"/>
+        <Input placeholder="الجامعة (اختياري)" value="عدة جامعات"/>
         <Input placeholder="عدد الحصص" value="8"/>
         <Input placeholder="مدة الحصة" value="60 دقيقة"/>
-        <Input placeholder="سعر الباقة" value="1,200 ج.م"/>
+        <Input placeholder="سعر الباقة" value="1,800 ج.م"/>
         <Input placeholder="صلاحية الباقة" value="60 يوم"/>
       </div>
-      <p style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 12 }}>سعر الطالب والصافي يظهران حسب رسوم المنصة قبل النشر.</p>
+      <p style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 12 }}>الاستهداف: جامعة · كلية · قسم · فرقة · مادة — يظهر للطالب المطابق فقط.</p>
     </Page>
   )
   if (screen === "pkg-list" || screen === "pkg-detail") return (
-    <Page title="باقة الثانوية العامة" onBack={() => go("t-view")} footer={<Btn onClick={() => go("book-pay")}>اشترك في الباقة</Btn>}>
+    <Page title="باقة جامعية" onBack={() => go("t-view")} footer={<Btn onClick={() => go("book-pay")}>اشترك في الباقة</Btn>}>
       <Card>
-        <div style={{ fontFamily: AR, lineHeight: 2 }}>أ/ محمد حسن · 8 حصص · 60 دقيقة · المتبقي بعد الشراء: 8 · أوفر من الحصة المفردة</div>
+        <div style={{ fontFamily: AR, lineHeight: 2 }}>أ/ محمد حسن · Data Structures · حاسبات · الفرقة الثانية · 8 حصص · 1,800 ج.م</div>
+      </Card>
+      <Card style={{ marginTop: 8, background: T.brandXLight }}>
+        <div style={{ fontFamily: AR, fontSize: 13 }}>مثال آخر: مراجعة Final — Anatomy · Medicine · 4 جلسات</div>
       </Card>
     </Page>
   )
@@ -3971,20 +4857,40 @@ function ExtraFlow({ screen, go, ctx }: {
   )
   if (screen === "guardian") return (
     <Page title="ولي الأمر" onBack={() => go("s-account")}>
-      <Card style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <Avatar name="أحمد محمد" size={48}/>
-          <div>
-            <div style={{ fontFamily: AR, fontWeight: 900 }}>أحمد محمد</div>
-            <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>صلة القرابة: والد</div>
-            <Chip color={T.emerald}>مرتبط بالحساب ✓</Chip>
-          </div>
-        </div>
-      </Card>
-      <Card style={{ background: T.brandXLight }}>
-        <div style={{ fontFamily: AR, fontWeight: 800 }}>الصلاحيات</div>
-        <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.7 }}>ولي الأمر يشوف التقدم والحضور والمدفوعات. محادثات المعلم الذكي وسجل الشات الخاص مع المدرس مش ظاهرة له بشكل افتراضي.</p>
-      </Card>
+      {ctx.uni ? (
+        <>
+          <Card style={{ marginBottom: 12, background: T.amberLt }}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>للطلاب الجامعيين البالغين</div>
+            <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.7, margin: "6px 0 0" }}>
+              ميزات ولي الأمر اختيارية ومخفية افتراضيًا. لو ربطت ولي أمر، هتظهر له فقط الصلاحيات اللي توافق عليها صراحة — مش الدرجات ولا المحادثات ولا AI تلقائيًا.
+            </p>
+          </Card>
+          <Card style={{ marginBottom: 10 }}>
+            <div style={{ fontFamily: AR, fontWeight: 800, marginBottom: 8 }}>صلاحيات يمكن منحها</div>
+            {["التقدّم الأكاديمي", "المدفوعات", "المدرسين", "الموافقة على الحجوزات"].map((x) => (
+              <div key={x} style={{ marginBottom: 6 }}><Choice on={false} onClick={() => {}}>{x} — مغلق</Choice></div>
+            ))}
+          </Card>
+          <Btn variant="secondary">إرسال دعوة ربط (اختياري)</Btn>
+        </>
+      ) : (
+        <>
+          <Card style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <Avatar name="أحمد محمد" size={48}/>
+              <div>
+                <div style={{ fontFamily: AR, fontWeight: 900 }}>أحمد محمد</div>
+                <div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>صلة القرابة: والد</div>
+                <Chip color={T.emerald}>مرتبط بالحساب ✓</Chip>
+              </div>
+            </div>
+          </Card>
+          <Card style={{ background: T.brandXLight }}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>الصلاحيات</div>
+            <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.7 }}>ولي الأمر يشوف التقدم والحضور والمدفوعات. محادثات المعلم الذكي وسجل الشات الخاص مع المدرس مش ظاهرة له بشكل افتراضي.</p>
+          </Card>
+        </>
+      )}
     </Page>
   )
   if (screen === "book-pay") return <BookPay go={go}/>
@@ -4040,15 +4946,24 @@ function AddMoney({ go }: { go: Go }) {
   )
 }
 
-function Transactions({ go }: { go: Go }) {
+function Transactions({ go, uni }: { go: Go; uni?: UniProfile | null }) {
   const [tab, setTab] = useState("الكل")
-  const rows = [
-    { name: "حصة رياضيات مع أ/ محمد", amount: "-180 ج.م", date: "اليوم · 6:00 م", status: "ناجحة", extra: "رقم العملية TX-88421", kind: "مدفوعات", time: "18:00", value: "180", fee: "حسب السياسة", vat: "—" },
-    { name: "شحن المحفظة", amount: "+250 ج.م", date: "أمس · 2:14 م", status: "ناجحة", extra: "بطاقة **** 4242", kind: "شحن", time: "14:14", value: "250", fee: "—", vat: "—" },
-    { name: "استرداد حجز", amount: "+150 ج.م", date: "18 أغسطس", status: "مستردة", extra: "إلى المحفظة", kind: "استرداد", time: "11:20", value: "150", fee: "—", vat: "—" },
-    { name: "اشتراك Student Plus", amount: "-89 ج.م", date: "1 أغسطس", status: "ناجحة", extra: "تجديد شهري", kind: "اشتراكات", time: "09:00", value: "89", fee: "—", vat: "—" },
-    { name: "دفع حصة فيزياء", amount: "-160 ج.م", date: "28 يوليو", status: "معلقة", extra: "بانتظار تأكيد الحصة", kind: "مدفوعات", time: "17:30", value: "160", fee: "حسب السياسة", vat: "—" },
-  ]
+  const course = uni?.courses[0]?.name ?? "رياضيات"
+  const rows = uni
+    ? [
+        { name: `حصة ${course}`, amount: "-220 ج.م", date: "اليوم · 6:00 م", status: "ناجحة", extra: "رقم العملية TX-88421", kind: "مدفوعات", time: "18:00", value: "220", fee: "حسب السياسة", vat: "—" },
+        { name: `باقة ${uni.courses[1]?.name ?? "Calculus"}`, amount: "-1,800 ج.م", date: "أمس", status: "ناجحة", extra: `${uni.facultyName} · ${uni.year}`, kind: "مدفوعات", time: "14:14", value: "1800", fee: "حسب السياسة", vat: "—" },
+        { name: "بث مراجعة Final", amount: "-75 ج.م", date: "18 أغسطس", status: "ناجحة", extra: "Live session", kind: "مدفوعات", time: "20:00", value: "75", fee: "حسب السياسة", vat: "—" },
+        { name: "اشتراك AI", amount: "-89 ج.م", date: "1 أغسطس", status: "ناجحة", extra: "تجديد شهري", kind: "اشتراكات", time: "09:00", value: "89", fee: "—", vat: "—" },
+        { name: "شحن المحفظة", amount: "+250 ج.م", date: "28 يوليو", status: "ناجحة", extra: "بطاقة **** 4242", kind: "شحن", time: "17:30", value: "250", fee: "—", vat: "—" },
+      ]
+    : [
+        { name: "حصة رياضيات مع أ/ محمد", amount: "-180 ج.م", date: "اليوم · 6:00 م", status: "ناجحة", extra: "رقم العملية TX-88421", kind: "مدفوعات", time: "18:00", value: "180", fee: "حسب السياسة", vat: "—" },
+        { name: "شحن المحفظة", amount: "+250 ج.م", date: "أمس · 2:14 م", status: "ناجحة", extra: "بطاقة **** 4242", kind: "شحن", time: "14:14", value: "250", fee: "—", vat: "—" },
+        { name: "استرداد حجز", amount: "+150 ج.م", date: "18 أغسطس", status: "مستردة", extra: "إلى المحفظة", kind: "استرداد", time: "11:20", value: "150", fee: "—", vat: "—" },
+        { name: "اشتراك Student Plus", amount: "-89 ج.م", date: "1 أغسطس", status: "ناجحة", extra: "تجديد شهري", kind: "اشتراكات", time: "09:00", value: "89", fee: "—", vat: "—" },
+        { name: "دفع حصة فيزياء", amount: "-160 ج.م", date: "28 يوليو", status: "معلقة", extra: "بانتظار تأكيد الحصة", kind: "مدفوعات", time: "17:30", value: "160", fee: "حسب السياسة", vat: "—" },
+      ]
   const shown = rows.filter((r) => tab === "الكل" || r.kind === tab)
   return (
     <Page title="المعاملات المالية" onBack={() => go("s-wallet")}>
@@ -4426,7 +5341,12 @@ export default function App() {
   const [hasKids, setHasKids] = useState(false)
   const [kids] = useState<Kid[]>(DEMO_KIDS)
   const [kidId, setKidId] = useState("ahmed")
+  const [plan, setPlan] = useState<PlanId>("free")
+  const [hasPackage, setHasPackage] = useState(false)
+  const [hasGuardian, setHasGuardian] = useState(false)
   const [verified, setVerified] = useState(false)
+  const [uniProfile, setUniProfile] = useState<UniProfile | null>(null)
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null)
   const [dueOrders, setDueOrders] = useState<DueOrder[]>([
     { id: "#8246", time: "18:00", value: "180", fee: "حسب السياسة", vat: "—", due: "153", sub: "رياضيات · أحمد علي" },
     { id: "#8241", time: "16:30", value: "180", fee: "حسب السياسة", vat: "—", due: "153", sub: "رياضيات · سارة محمود" },
@@ -4445,6 +5365,20 @@ export default function App() {
     },
   ])
   const go: Go = (s) => setScreen(s)
+  const [uniDraft, setUniDraft] = useState<UniDraft>(emptyUniDraft())
+  const moreAccess = resolveMoreAccess({
+    role: role ?? "s",
+    verified,
+    plan,
+    hasTeacher,
+    teacherEmpty,
+    hasKids,
+    hasPackage,
+    hasGuardian,
+    kids,
+    kidId,
+    uni: uniProfile,
+  })
   const requestSettlement = () => {
     if (!dueOrders.length) return
     const n = 200 + settlements.length
@@ -4461,6 +5395,9 @@ export default function App() {
       ? { ...s, status: "done" as const, doneAt: "تم التحويل اليوم" }
       : s))
   }
+  const uniSetupScreens: Screen[] = ["u-uni", "u-faculty", "u-dept", "u-year", "u-sem", "u-courses", "u-course-add"]
+  const activeCourseName = uniProfile?.courses.find((c) => c.id === activeCourseId)?.name
+    ?? uniProfile?.courses[0]?.name
 
   return (
     <IPhoneFrame>
@@ -4475,25 +5412,59 @@ export default function App() {
         {screen === "role" && <RoleSelect goStudent={() => { setRole("s"); go("s-setup") }} goTeacher={() => { setRole("t"); go("t-setup") }} goParent={() => { setRole("p"); go("p-setup") }}/>}
         {screen === "s-setup" && <StudentSetup go={go}/>}
         {screen === "t-setup" && <TeacherSetup go={go}/>}
+        {uniSetupScreens.includes(screen) && (
+          <UniversitySetupFlow
+            screen={screen}
+            go={go}
+            draft={uniDraft}
+            setDraft={setUniDraft}
+            onComplete={(p) => {
+              setUniProfile(p)
+              setHasGuardian(false)
+              setHasPackage(true)
+              go("u-home")
+            }}
+          />
+        )}
         {screen === "s-start" && <StudentStart go={go}/>}
         {screen === "s-home" && <StudentHome go={go} hasTeacher={hasTeacher}/>}
+        {screen === "u-home" && uniProfile && (
+          <UniversityHome
+            go={go}
+            profile={uniProfile}
+            hasTeacher={hasTeacher}
+            onOpenCourse={setActiveCourseId}
+          />
+        )}
+        {screen === "u-course" && uniProfile && (
+          <UniversityCourse go={go} profile={uniProfile} courseId={activeCourseId}/>
+        )}
+        {screen === "u-course-ai" && (
+          <AIChat
+            onBack={() => go("u-course")}
+            onLimit={() => go("ai-limit")}
+            uni={uniProfile}
+            courseName={activeCourseName}
+          />
+        )}
+        {screen === "u-teachers" && <FindTeacher go={go} uni={uniProfile}/>}
         {screen === "t-home" && <TeacherHome go={go} empty={teacherEmpty} verified={verified}/>}
         {screen === "create-class" && <CreateClass go={go} onCreated={() => setTeacherEmpty(false)}/>}
         {screen === "join" && <JoinClass go={go} onJoin={() => setHasTeacher(true)}/>}
         {screen === "join-ok" && (
           <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg }}>
             <StatusBar/>
-            <SuccessBlock title="تم انضمامك للفصل بنجاح 🎉" cta="اذهب للفصل" onCta={() => { setHasTeacher(true); go("s-home") }}/>
+            <SuccessBlock title="تم انضمامك للفصل بنجاح 🎉" cta="اذهب للفصل" onCta={() => { setHasTeacher(true); go(uniProfile ? "u-home" : "s-home") }}/>
           </div>
         )}
-        {screen === "find" && <FindTeacher go={go}/>}
-        {screen === "t-view" && <TeacherView go={go}/>}
-        {screen === "book" && <Booking go={go}/>}
+        {screen === "find" && <FindTeacher go={go} uni={uniProfile}/>}
+        {screen === "t-view" && <TeacherView go={go} uni={uniProfile}/>}
+        {screen === "book" && <Booking go={go} uni={uniProfile}/>}
         {screen === "book-ok" && (
-          <Page title="تم الحجز" onBack={() => go("s-home")} footer={
+          <Page title="تم الحجز" onBack={() => go(uniProfile ? "u-home" : "s-home")} footer={
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <Btn onClick={() => go("chat")}>مراسلة المدرس</Btn>
-              <Btn variant="secondary" onClick={() => go("s-home")}>العودة للرئيسية</Btn>
+              <Btn variant="secondary" onClick={() => go(uniProfile ? "u-home" : "s-home")}>العودة للرئيسية</Btn>
             </div>
           }>
             <SuccessBlock title="تم حجز الحصة بنجاح 🎉" sub="السبت 6:00 م · أ/ محمد أحمد" cta="مراسلة المدرس" onCta={() => go("chat")}/>
@@ -4504,13 +5475,20 @@ export default function App() {
         {screen === "lesson" && <Lesson go={go}/>}
         {screen === "quiz" && <Quiz go={go}/>}
         {screen === "quiz-ok" && <QuizOk go={go}/>}
-        {screen === "ai-chat" && <AIChat onBack={() => go("s-home")} onLimit={() => go("ai-limit")}/>}
+        {screen === "ai-chat" && (
+          <AIChat
+            onBack={() => go(uniProfile ? "u-home" : "s-home")}
+            onLimit={() => go("ai-limit")}
+            uni={uniProfile}
+            courseName={activeCourseName}
+          />
+        )}
         {screen === "t-ai" && <TeacherAI go={go}/>}
         {screen === "tasks" && <Tasks go={go}/>}
         {screen === "hw" && <Homework go={go}/>}
-        {screen === "s-account" && <Account go={go} role="s"/>}
-        {screen === "t-account" && <Account go={go} role="t" verified={verified}/>}
-        {screen === "notifs" && <Notifs go={go} back={role === "t" ? "t-home" : role === "p" ? "p-home" : "s-home"}/>}
+        {screen === "s-account" && <Account go={go} access={{ ...moreAccess, role: "s" }}/>}
+        {screen === "t-account" && <Account go={go} access={{ ...moreAccess, role: "t" }}/>}
+        {screen === "notifs" && <Notifs go={go} back={role === "t" ? "t-home" : role === "p" ? "p-home" : uniProfile ? "u-home" : "s-home"}/>}
         {screen === "class-code" && <ClassCode go={go}/>}
         {screen === "class" && <ClassDetails go={go}/>}
         {screen === "class-students" && <ClassStudents go={go}/>}
@@ -4518,6 +5496,11 @@ export default function App() {
         <ExtraFlow screen={screen} go={go} ctx={{
           verified, setVerified, role, dueOrders, settlements, requestSettlement, approvePending,
           kids, kidId, setKidId, hasKids, setHasKids,
+          access: moreAccess,
+          uni: uniProfile,
+          setUni: setUniProfile,
+          setDraft: setUniDraft,
+          activeCourseId,
         }}/>
       </div>
     </IPhoneFrame>
