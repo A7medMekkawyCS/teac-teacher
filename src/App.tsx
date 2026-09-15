@@ -23,38 +23,38 @@ const AR = "'Cairo', sans-serif"
 const LAT = "'Plus Jakarta Sans', sans-serif"
 
 const T = {
-  brand:      "#4558F4",
-  brandDim:   "#3546D4",
-  brandLight: "#EEF1FF",
-  brandXLight:"#F7F8FF",
-  ai:         "#7C3AED",
-  aiLight:    "#F3EDFF",
-  aiXLight:   "#FAF8FF",
-  teal:       "#0891B2",
+  brand:      "#2F9E8A",
+  brandDim:   "#247A6B",
+  brandLight: "#E4F6F1",
+  brandXLight:"#F2FAF7",
+  ai:         "#0D9488",
+  aiLight:    "#CCFBF1",
+  aiXLight:   "#F0FDFA",
+  teal:       "#0E7490",
   emerald:    "#059669",
   emeraldLt:  "#ECFDF5",
   amber:      "#D97706",
   amberLt:    "#FFFBEB",
   rose:       "#E11D48",
   roseLt:     "#FFF1F2",
-  bg:         "#F4F6FF",
+  bg:         "#F2FAF7",
   card:       "#FFFFFF",
-  text:       "#1A1F36",
-  sub:        "#3F4663",
-  muted:      "#6B7280",
-  border:     "#E4E8FA",
-  gray:       "#F1F3FA",
-  gradBrand:  "linear-gradient(135deg, #4558F4 0%, #7C3AED 100%)",
+  text:       "#14241F",
+  sub:        "#3D554E",
+  muted:      "#6B7F78",
+  border:     "#D5EBE4",
+  gray:       "#EEF5F2",
+  gradBrand:  "linear-gradient(135deg, #2F9E8A 0%, #0D9488 100%)",
   gradTeacher:"linear-gradient(135deg, #059669 0%, #0D9488 100%)",
-  gradAI:     "linear-gradient(135deg, #4558F4 0%, #7C3AED 100%)",
-  gradCard:   "linear-gradient(160deg, #EEF1FF 0%, #F3EDFF 100%)",
+  gradAI:     "linear-gradient(135deg, #2F9E8A 0%, #0F766E 100%)",
+  gradCard:   "linear-gradient(160deg, #E4F6F1 0%, #F0FDFA 100%)",
 } as const
 
 // ─── Shadows ──────────────────────────────────────────────────────────────────
 const S = {
-  card:  "0 2px 16px rgba(69,88,244,0.07), 0 1px 4px rgba(0,0,0,0.04)",
-  cardHover: "0 6px 28px rgba(69,88,244,0.13), 0 2px 8px rgba(0,0,0,0.06)",
-  btn:   "0 4px 20px rgba(69,88,244,0.35)",
+  card:  "0 2px 16px rgba(47,158,138,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+  cardHover: "0 6px 28px rgba(47,158,138,0.14), 0 2px 8px rgba(0,0,0,0.06)",
+  btn:   "0 4px 20px rgba(47,158,138,0.35)",
   btnEm: "0 4px 20px rgba(5,150,105,0.35)",
   float: "0 8px 40px rgba(0,0,0,0.18)",
 }
@@ -105,8 +105,8 @@ function LogoMark({ size = 48, light = false }: { size?: number; light?: boolean
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={light ? "rgba(255,255,255,0.25)" : "#4558F4"}/>
-          <stop offset="100%" stopColor={light ? "rgba(255,255,255,0.1)" : "#7C3AED"}/>
+          <stop offset="0%" stopColor={light ? "rgba(255,255,255,0.25)" : T.brand}/>
+          <stop offset="100%" stopColor={light ? "rgba(255,255,255,0.1)" : T.ai}/>
         </linearGradient>
       </defs>
       <rect width="48" height="48" rx={size * 0.25} fill={light ? "rgba(255,255,255,0.18)" : `url(#${id})`} stroke={light ? "rgba(255,255,255,0.3)" : "none"} strokeWidth={light ? 1 : 0}/>
@@ -938,7 +938,7 @@ function Splash({ go }: { go: () => void }) {
     <div onClick={go} style={{
       flex: 1, display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(145deg,#2D3AC8 0%,#4558F4 45%,#7C3AED 100%)",
+      background: "linear-gradient(145deg,#1F6B5C 0%,#2F9E8A 45%,#0D9488 100%)",
       position: "relative", overflow: "hidden", cursor: "pointer",
     }}>
       <StatusBar light/>
@@ -986,22 +986,22 @@ function OnboardArt({ slide }: { slide: number }) {
     return (
       <svg viewBox="0 0 390 360" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
         <defs>
-          <linearGradient id="oa1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#7C3AED"/><stop offset="100%" stopColor="#4558F4"/></linearGradient>
-          <filter id="os1"><feDropShadow dx="0" dy="14" stdDeviation="16" floodColor="#4558F4" floodOpacity=".22"/></filter>
+          <linearGradient id="oa1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#0D9488"/><stop offset="100%" stopColor="#2F9E8A"/></linearGradient>
+          <filter id="os1"><feDropShadow dx="0" dy="14" stdDeviation="16" floodColor="#2F9E8A" floodOpacity=".22"/></filter>
         </defs>
-        <circle cx="196" cy="168" r="118" fill="#7C3AED" opacity=".08"/>
-        <circle cx="196" cy="168" r="78" fill="#7C3AED" opacity=".10"/>
+        <circle cx="196" cy="168" r="118" fill="#0D9488" opacity=".08"/>
+        <circle cx="196" cy="168" r="78" fill="#0D9488" opacity=".10"/>
         <rect x="86" y="92" width="168" height="196" rx="28" fill="white" filter="url(#os1)"/>
-        <rect x="102" y="112" width="136" height="18" rx="9" fill="#F3EDFF"/>
+        <rect x="102" y="112" width="136" height="18" rx="9" fill="#F0FDFA"/>
         <rect x="102" y="142" width="108" height="10" rx="5" fill="#EDE9FE"/>
         <rect x="102" y="160" width="124" height="10" rx="5" fill="#EDE9FE"/>
         <rect x="102" y="178" width="88" height="10" rx="5" fill="#EDE9FE"/>
         <rect x="102" y="214" width="136" height="48" rx="16" fill="url(#oa1)"/>
         <circle cx="278" cy="118" r="36" fill="url(#oa1)"/>
         <path d="M278 102l3.2 10.4 10.4 3.2-10.4 3.2L278 129l-3.2-10.2-10.4-3.2 10.4-3.2Z" fill="white"/>
-        <circle cx="92" cy="236" r="22" fill="#EEF1FF"/>
-        <circle cx="92" cy="228" r="9" fill="#4558F4"/>
-        <ellipse cx="92" cy="248" rx="12" ry="8" fill="#4558F4" opacity=".35"/>
+        <circle cx="92" cy="236" r="22" fill="#E4F6F1"/>
+        <circle cx="92" cy="228" r="9" fill="#2F9E8A"/>
+        <ellipse cx="92" cy="248" rx="12" ry="8" fill="#2F9E8A" opacity=".35"/>
       </svg>
     )
   }
@@ -1009,19 +1009,19 @@ function OnboardArt({ slide }: { slide: number }) {
     return (
       <svg viewBox="0 0 390 360" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
         <defs>
-          <linearGradient id="oa2" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#0891B2"/><stop offset="100%" stopColor="#4558F4"/></linearGradient>
+          <linearGradient id="oa2" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#0891B2"/><stop offset="100%" stopColor="#2F9E8A"/></linearGradient>
           <filter id="os2"><feDropShadow dx="0" dy="14" stdDeviation="16" floodColor="#0891B2" floodOpacity=".2"/></filter>
         </defs>
         <circle cx="196" cy="168" r="118" fill="#0891B2" opacity=".08"/>
         <rect x="78" y="108" width="234" height="168" rx="28" fill="white" filter="url(#os2)"/>
-        <circle cx="196" cy="168" r="54" fill="none" stroke="#EEF1FF" strokeWidth="14"/>
+        <circle cx="196" cy="168" r="54" fill="none" stroke="#E4F6F1" strokeWidth="14"/>
         <circle cx="196" cy="168" r="54" fill="none" stroke="url(#oa2)" strokeWidth="14" strokeLinecap="round" strokeDasharray="250" strokeDashoffset="70" transform="rotate(-90 196 168)"/>
-        <text x="196" y="176" textAnchor="middle" fontSize="22" fontWeight="800" fill="#4558F4" fontFamily="Plus Jakarta Sans,sans-serif">72%</text>
+        <text x="196" y="176" textAnchor="middle" fontSize="22" fontWeight="800" fill="#2F9E8A" fontFamily="Plus Jakarta Sans,sans-serif">72%</text>
         <rect x="108" y="248" width="18" height="36" rx="6" fill="#C7D2FE"/>
         <rect x="136" y="232" width="18" height="52" rx="6" fill="#A5B4FC"/>
         <rect x="164" y="218" width="18" height="66" rx="6" fill="#818CF8"/>
-        <rect x="192" y="208" width="18" height="76" rx="6" fill="#4558F4"/>
-        <rect x="220" y="224" width="18" height="60" rx="6" fill="#7C3AED"/>
+        <rect x="192" y="208" width="18" height="76" rx="6" fill="#2F9E8A"/>
+        <rect x="220" y="224" width="18" height="60" rx="6" fill="#0D9488"/>
         <rect x="248" y="240" width="18" height="44" rx="6" fill="#C4B5FD"/>
       </svg>
     )
@@ -1029,13 +1029,13 @@ function OnboardArt({ slide }: { slide: number }) {
   return (
     <svg viewBox="0 0 390 360" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <linearGradient id="oa0" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#4558F4"/><stop offset="100%" stopColor="#7C3AED"/></linearGradient>
-        <filter id="os0"><feDropShadow dx="0" dy="16" stdDeviation="18" floodColor="#4558F4" floodOpacity=".24"/></filter>
+        <linearGradient id="oa0" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#2F9E8A"/><stop offset="100%" stopColor="#0D9488"/></linearGradient>
+        <filter id="os0"><feDropShadow dx="0" dy="16" stdDeviation="18" floodColor="#2F9E8A" floodOpacity=".24"/></filter>
       </defs>
-      <circle cx="196" cy="170" r="126" fill="#4558F4" opacity=".07"/>
-      <circle cx="196" cy="170" r="86" fill="#7C3AED" opacity=".08"/>
+      <circle cx="196" cy="170" r="126" fill="#2F9E8A" opacity=".07"/>
+      <circle cx="196" cy="170" r="86" fill="#0D9488" opacity=".08"/>
       <g filter="url(#os0)">
-        <rect x="118" y="86" width="92" height="118" rx="14" fill="#EEF1FF" transform="rotate(-8 164 145)"/>
+        <rect x="118" y="86" width="92" height="118" rx="14" fill="#E4F6F1" transform="rotate(-8 164 145)"/>
         <rect x="176" y="80" width="96" height="124" rx="14" fill="white" transform="rotate(7 224 142)"/>
         <rect x="186" y="96" width="64" height="8" rx="4" fill="#C7D2FE" transform="rotate(7 218 100)"/>
         <rect x="186" y="114" width="52" height="8" rx="4" fill="#DDD6FE" transform="rotate(7 212 118)"/>
@@ -1051,7 +1051,7 @@ function OnboardArt({ slide }: { slide: number }) {
       <circle cx="86" cy="228" r="28" fill="url(#oa0)"/>
       <circle cx="86" cy="220" r="11" fill="white" opacity=".9"/>
       <ellipse cx="86" cy="242" rx="16" ry="10" fill="white" opacity=".55"/>
-      <circle cx="304" cy="236" r="28" fill="#7C3AED"/>
+      <circle cx="304" cy="236" r="28" fill="#0D9488"/>
       <path d="M304 222 l4 12 12 4 -12 4 -4 12 -4-12 -12-4 12-4 Z" fill="white"/>
     </svg>
   )
@@ -1099,7 +1099,7 @@ function Onboard({ go, goLogin }: { go: () => void; goLogin: () => void }) {
 
       <div style={{
         flexShrink: 0, background: T.card, borderRadius: "28px 28px 0 0",
-        boxShadow: "0 -12px 40px rgba(69,88,244,0.08)",
+        boxShadow: "0 -12px 40px rgba(47,158,138,0.08)",
         padding: "20px 24px 34px",
         display: "flex", flexDirection: "column", gap: 0,
       }}>
@@ -1107,7 +1107,7 @@ function Onboard({ go, goLogin }: { go: () => void; goLogin: () => void }) {
           {slides.map((_, i) => (
             <button key={i} onClick={() => setSlide(i)} style={{
               width: i === slide ? 22 : 8, height: 8, borderRadius: 4, border: "none", padding: 0,
-              background: i === slide ? s.accent : "#E4E8FA", cursor: "pointer",
+              background: i === slide ? s.accent : "#D5EBE4", cursor: "pointer",
             }}/>
           ))}
         </div>
@@ -1195,7 +1195,7 @@ function RoleSelect({ goStudent, goTeacher, goParent }: { goStudent: () => void;
   const roles = [
     { id: "s" as const, icon: Ic.book, title: "طالب", desc: "اتعلم، تابع تقدمك، احجز مع مدرس واستخدم المعلم الذكي.", color: T.brand, grad: T.gradBrand },
     { id: "t" as const, icon: Ic.classes, title: "مدرس", desc: "أدر طلبتك، دروسك، حجوزاتك وأرباحك باستخدام أدوات ذكية.", color: T.emerald, grad: T.gradTeacher },
-    { id: "p" as const, icon: Ic.family, title: "ولي أمر", desc: "تابع أولادك، مستواهم الدراسي، حجوزاتهم ومدفوعاتهم من مكان واحد.", color: T.teal, grad: "linear-gradient(135deg, #0891B2 0%, #4558F4 100%)" },
+    { id: "p" as const, icon: Ic.family, title: "ولي أمر", desc: "تابع أولادك، مستواهم الدراسي، حجوزاتهم ومدفوعاتهم من مكان واحد.", color: T.teal, grad: "linear-gradient(135deg, #0891B2 0%, #2F9E8A 100%)" },
   ]
   const goSel = () => { if (sel === "t") goTeacher(); else if (sel === "p") goParent(); else if (sel === "s") goStudent() }
   return (
@@ -1237,7 +1237,7 @@ function RoleSelect({ goStudent, goTeacher, goParent }: { goStudent: () => void;
         </div>
       </div>
       <div style={{ padding: "12px 20px 28px", flexShrink: 0 }}>
-        <Btn onClick={goSel} style={sel === "t" ? { background: T.gradTeacher, boxShadow: S.btnEm } : sel === "p" ? { background: "linear-gradient(135deg,#0891B2,#4558F4)", boxShadow: "0 4px 20px rgba(8,145,178,.35)" } : undefined}>
+        <Btn onClick={goSel} style={sel === "t" ? { background: T.gradTeacher, boxShadow: S.btnEm } : sel === "p" ? { background: "linear-gradient(135deg,#0891B2,#2F9E8A)", boxShadow: "0 4px 20px rgba(8,145,178,.35)" } : undefined}>
           {sel ? "متابعة" : "اختر دورك للمتابعة"}
         </Btn>
       </div>
@@ -2198,13 +2198,21 @@ function UniversitySetupFlow({
 }
 
 function UniversityHome({
-  go, profile, hasTeacher, onOpenCourse,
+  go, profile, setProfile, hasTeacher, onOpenCourse,
 }: {
   go: Go
   profile: UniProfile
+  setProfile: (p: UniProfile) => void
   hasTeacher: boolean
   onOpenCourse: (id: string) => void
 }) {
+  const toast = useToast()
+  const [streak, setStreak] = useState(3)
+  const [studiedToday, setStudiedToday] = useState(false)
+  const avg = profile.courses.length
+    ? Math.round(profile.courses.reduce((a, c) => a + c.pct, 0) / profile.courses.length)
+    : 0
+  const dueSoon = profile.courses.filter((c) => c.pct < 70).length
   const navItems = [
     { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
     { key: "learn", label: "موادي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
@@ -2225,6 +2233,20 @@ function UniversityHome({
     ? `${profile.facultyName.replace(/^كلية /, "")} · ${profile.department}`
     : `${profile.facultyName.replace(/^كلية /, "")} · ${profile.year}`
 
+  const markStudied = () => {
+    if (studiedToday) { toast("سجّلت مذاكرة النهاردة بالفعل"); return }
+    const target = [...profile.courses].sort((a, b) => a.pct - b.pct)[0]
+    setProfile({
+      ...profile,
+      courses: profile.courses.map((c) =>
+        c.id === target?.id ? { ...c, pct: Math.min(100, c.pct + 4) } : c
+      ),
+    })
+    setStudiedToday(true)
+    setStreak((s) => s + 1)
+    toast(target ? `تم تسجيل جلسة · +4% في ${target.name}` : "تم تسجيل جلسة المذاكرة")
+  }
+
   return (
     <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
       <div style={{ background: T.gradBrand, padding: "44px 20px 18px", flexShrink: 0 }}>
@@ -2244,6 +2266,25 @@ function UniversityHome({
         </div>
       </div>
       <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "14px 20px 20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+          <Card style={{ padding: 12, textAlign: "center" }}>
+            <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 20, color: T.brand }}>{avg}%</div>
+            <div style={{ fontFamily: AR, fontSize: 11, color: T.muted, marginTop: 2 }}>متوسط التقدم</div>
+          </Card>
+          <Card style={{ padding: 12, textAlign: "center" }}>
+            <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 20, color: T.emerald }}>{streak}</div>
+            <div style={{ fontFamily: AR, fontSize: 11, color: T.muted, marginTop: 2 }}>أيام متتالية</div>
+          </Card>
+          <Card style={{ padding: 12, textAlign: "center" }}>
+            <div style={{ fontFamily: LAT, fontWeight: 900, fontSize: 20, color: dueSoon ? T.amber : T.emerald }}>{dueSoon}</div>
+            <div style={{ fontFamily: AR, fontSize: 11, color: T.muted, marginTop: 2 }}>محتاجة تركيز</div>
+          </Card>
+        </div>
+
+        <Btn onClick={markStudied} style={{ marginBottom: 12, opacity: studiedToday ? 0.7 : 1 }}>
+          {studiedToday ? "تم تسجيل مذاكرة النهاردة ✓" : "سجّل إنك ذكرت النهاردة"}
+        </Btn>
+
         <Card style={{ marginBottom: 12, padding: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontFamily: AR, fontSize: 12 }}>
             <div><span style={{ color: T.muted }}>الجامعة</span><div style={{ fontWeight: 800, marginTop: 2 }}>{profile.universityName}</div></div>
@@ -2298,8 +2339,8 @@ function UniversityHome({
             <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>موجّه لـ {profile.year}</div>
           </Card>
           <Card onClick={() => go("u-exam")}>
-            <div style={{ fontFamily: AR, fontWeight: 800 }}>امتحان {profile.courses.find(c => c.name.includes("Database") || c.name.includes("Database") || c.id === "db")?.name ?? profile.courses[1]?.name ?? "المادة"} بعد 8 أيام</div>
-            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>التقدم 62% · كمل خطة المراجعة</div>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>امتحان {profile.courses.find(c => c.name.includes("Database") || c.id === "db")?.name ?? profile.courses[1]?.name ?? "المادة"} بعد 8 أيام</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>التقدم {avg}% · كمل خطة المراجعة</div>
           </Card>
         </HomeSection>
 
@@ -2313,14 +2354,51 @@ function UniversityHome({
   )
 }
 
-function UniversityCourse({ go, profile, courseId }: { go: Go; profile: UniProfile; courseId: string | null }) {
+function UniversityCourse({
+  go, profile, setProfile, courseId, onOpenCourse,
+}: {
+  go: Go
+  profile: UniProfile
+  setProfile: (p: UniProfile) => void
+  courseId: string | null
+  onOpenCourse: (id: string) => void
+}) {
+  const toast = useToast()
   const [tab, setTab] = useState("المحتوى")
   const c = profile.courses.find((x) => x.id === courseId) ?? profile.courses[0]
+  const [tasks, setTasks] = useState(() => [
+    { id: "t1", label: c?.next ?? "مراجعة المحاضرة الأخيرة", done: false },
+    { id: "t2", label: "حل Sheet / Assignment", done: false },
+    { id: "t3", label: "اختبار قصير ذاتي", done: false },
+  ])
+  const [files, setFiles] = useState(["Lecture PDF", "Slides", "Sheet", "Past Exam"])
+  const [units] = useState(["مقدمة", "مفاهيم أساسية", "أمثلة تطبيقية", "مراجعة Final"])
+
   if (!c) return (
     <Page title="المادة" onBack={() => go("u-home")}>
       <p style={{ fontFamily: AR }}>لا توجد مواد بعد.</p>
     </Page>
   )
+
+  const bump = (delta: number, msg: string) => {
+    setProfile({
+      ...profile,
+      courses: profile.courses.map((x) =>
+        x.id === c.id ? { ...x, pct: Math.min(100, x.pct + delta) } : x
+      ),
+    })
+    toast(msg)
+  }
+
+  const toggleTask = (id: string) => {
+    setTasks((prev) => {
+      const next = prev.map((t) => t.id === id ? { ...t, done: !t.done } : t)
+      const justDone = next.find((t) => t.id === id)?.done
+      if (justDone) bump(3, "تم إنهاء مهمة · +3% تقدم")
+      return next
+    })
+  }
+
   return (
     <Page title={c.name} onBack={() => go("u-home")} footer={<Btn onClick={() => go("u-course-ai")}>اسأل AI عن المادة ✨</Btn>}>
       <div style={{ fontFamily: LAT, color: T.muted, marginBottom: 8 }}>{c.code ?? "—"}</div>
@@ -2328,23 +2406,54 @@ function UniversityCourse({ go, profile, courseId }: { go: Go; profile: UniProfi
         {profile.facultyName} · {profile.year} · {profile.semester}
       </div>
       <ProgressRing pct={c.pct} size={72}/>
+      <Btn variant="secondary" onClick={() => bump(5, `جلسة مذاكرة في ${c.name} · +5%`)} style={{ marginTop: 10 }}>
+        سجّل جلسة مذاكرة في المادة
+      </Btn>
       <div style={{ display: "flex", gap: 6, overflowX: "auto", margin: "14px 0" }}>
         {["المحتوى", "المهام", "الاختبارات", "الملفات", "المدرسين", "AI"].map((t) => (
           <Chip key={t} filled={tab === t} onClick={() => setTab(t)}>{t}</Chip>
         ))}
       </div>
-      {tab === "المحتوى" && <Card><div style={{ fontFamily: AR, lineHeight: 1.7 }}>محاضرات · Sections · Labs · ملاحظات محفوظة خاصة بك.</div></Card>}
-      {tab === "المهام" && <Card><div style={{ fontFamily: AR }}>{c.next ?? "لا مهام قريبة"}</div></Card>}
+      {tab === "المحتوى" && (
+        <>
+          <Card style={{ marginBottom: 8 }}>
+            <div style={{ fontFamily: AR, lineHeight: 1.7, marginBottom: 8 }}>محاضرات · Sections · Labs · ملاحظات محفوظة خاصة بك.</div>
+          </Card>
+          {units.map((u, i) => (
+            <Card key={u} style={{ marginBottom: 8 }} onClick={() => toast(`فتح وحدة: ${u}`)}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR }}>
+                <span style={{ fontWeight: 800 }}>{i + 1}. {u}</span>
+                <Chip color={i < Math.floor(c.pct / 25) ? T.emerald : T.muted}>{i < Math.floor(c.pct / 25) ? "مكتمل" : "قادم"}</Chip>
+              </div>
+            </Card>
+          ))}
+        </>
+      )}
+      {tab === "المهام" && (
+        <>
+          {tasks.map((t) => (
+            <div key={t.id} style={{ marginBottom: 8 }}>
+              <Choice on={t.done} onClick={() => toggleTask(t.id)}>{t.done ? `✓ ${t.label}` : t.label}</Choice>
+            </div>
+          ))}
+          <p style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>إنهاء المهام بيزوّد تقدم المادة.</p>
+        </>
+      )}
       {tab === "الاختبارات" && <Card onClick={() => go("u-exam")}><div style={{ fontFamily: AR, fontWeight: 800 }}>وضع الامتحان</div><div style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>خطة مراجعة حسب تاريخك</div></Card>}
       {tab === "الملفات" && <>
-        {["Lecture PDF", "Slides", "Sheet", "Past Exam"].map((x) => <Card key={x} style={{ marginBottom: 8 }}><div style={{ fontFamily: AR }}>{x} · خاص</div></Card>)}
+        {files.map((x) => <Card key={x} style={{ marginBottom: 8 }} onClick={() => toast(`تم فتح ${x} (خاص)`)}><div style={{ fontFamily: AR }}>{x} · خاص</div></Card>)}
+        <Btn variant="secondary" onClick={() => {
+          const name = `ملاحظة ${files.length + 1}`
+          setFiles((p) => [...p, name])
+          toast(`تمت إضافة ${name}`)
+        }}>إضافة ملف / ملاحظة</Btn>
         <p style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>الملفات خاصة إلا لو شاركتها صراحة.</p>
       </>}
       {tab === "المدرسين" && <Card onClick={() => go("u-teachers")}><div style={{ fontFamily: AR, fontWeight: 800 }}>مدرسون لـ {c.name}</div></Card>}
       {tab === "AI" && <>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
           {["اشرح", "لخص", "اختبرني", "حل سؤال معايا", "راجع ملف", "خطة مذاكرة"].map((x) => (
-            <Chip key={x} color={T.ai} onClick={() => go("u-course-ai")}>{x}</Chip>
+            <Chip key={x} color={T.ai} onClick={() => { onOpenCourse(c.id); go("u-course-ai") }}>{x}</Chip>
           ))}
         </div>
         <Card onClick={() => go("u-course-ai")} style={{ background: T.aiXLight }}>
@@ -2586,7 +2695,7 @@ function TeacherView({ go, uni }: { go: Go; uni?: UniProfile | null }) {
 }
 
 function UniversityExtras({
-  screen, go, profile, setProfile, setDraft, activeCourseId,
+  screen, go, profile, setProfile, setDraft, activeCourseId, onOpenCourse,
 }: {
   screen: Screen
   go: Go
@@ -2594,12 +2703,21 @@ function UniversityExtras({
   setProfile: (p: UniProfile) => void
   setDraft: (d: UniDraft | ((p: UniDraft) => UniDraft)) => void
   activeCourseId: string | null
+  onOpenCourse: (id: string) => void
 }) {
+  const toast = useToast()
   const course = profile.courses.find((c) => c.id === activeCourseId) ?? profile.courses[0]
   const [examCourse, setExamCourse] = useState(course?.name ?? "")
   const [examDate, setExamDate] = useState("بعد 8 أيام")
   const [examHours, setExamHours] = useState("ساعتين يوميًا")
+  const [planOn, setPlanOn] = useState(false)
+  const [planDays, setPlanDays] = useState([
+    { id: "d1", label: "اليوم · مفاهيم أساسية", done: false },
+    { id: "d2", label: "غداً · تمارين تطبيقية", done: false },
+    { id: "d3", label: "بعد يومين · اختبار تجريبي", done: false },
+  ])
   const [searchQ, setSearchQ] = useState("")
+  const [calFilter, setCalFilter] = useState("الكل")
 
   const startEdit = (to: Screen) => {
     setDraft({
@@ -2621,7 +2739,12 @@ function UniversityExtras({
 
   if (screen === "u-exam") {
     return (
-      <Page title="وضع الامتحان" onBack={() => go("u-home")} footer={<Btn onClick={() => go("u-home")}>كمل خطة المراجعة</Btn>}>
+      <Page title="وضع الامتحان" onBack={() => go("u-home")} footer={
+        <Btn onClick={() => {
+          setPlanOn(true)
+          toast(`تم تفعيل خطة ${examCourse || "المادة"} · ${examDate}`)
+        }}>{planOn ? "تحديث الخطة" : "تفعيل خطة المراجعة"}</Btn>
+      }>
         <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>AI بيجهز خطة حسب مادتك ووقتك — بدون ما يحل الامتحان عنك.</p>
         <p style={{ fontFamily: AR, fontWeight: 800 }}>المادة</p>
         {profile.courses.map((c) => (
@@ -2642,9 +2765,33 @@ function UniversityExtras({
           <div style={{ fontFamily: AR, fontSize: 13, color: T.sub, lineHeight: 1.8, marginTop: 6 }}>
             أولوية: المفاهيم الأساسية → تمارين → اختبارات تجريبية<br/>
             مهام يومية حسب {examHours}<br/>
-            Quiz تجريبي كل يومين · التقدم الحالي 62%
+            Quiz تجريبي كل يومين · التقدم الحالي {profile.courses.find((c) => c.name === examCourse)?.pct ?? 62}%
           </div>
         </Card>
+        {planOn && (
+          <>
+            <p style={{ fontFamily: AR, fontWeight: 800, marginTop: 14 }}>مهام الخطة</p>
+            {planDays.map((d) => (
+              <div key={d.id} style={{ marginBottom: 8 }}>
+                <Choice on={d.done} onClick={() => {
+                  setPlanDays((prev) => prev.map((x) => x.id === d.id ? { ...x, done: !x.done } : x))
+                  if (!d.done) {
+                    const hit = profile.courses.find((c) => c.name === examCourse)
+                    if (hit) {
+                      setProfile({
+                        ...profile,
+                        courses: profile.courses.map((c) =>
+                          c.id === hit.id ? { ...c, pct: Math.min(100, c.pct + 2) } : c
+                        ),
+                      })
+                    }
+                    toast("تم إنهاء مهمة من خطة الامتحان")
+                  }
+                }}>{d.done ? `✓ ${d.label}` : d.label}</Choice>
+              </div>
+            ))}
+          </>
+        )}
       </Page>
     )
   }
@@ -2659,10 +2806,21 @@ function UniversityExtras({
       { t: "Live", n: "بث مراجعة Final", d: "السبت · 8 م", c: T.ai },
       { t: "Private", n: "حصة خاصة", d: "الأحد · 6 م", c: T.sub },
     ]
+    const shown = events.filter((e) => calFilter === "الكل" || e.t === calFilter)
     return (
       <Page title="التقويم الجامعي" onBack={() => go("u-home")}>
-        {events.map((e) => (
-          <Card key={e.t + e.n} style={{ marginBottom: 8, borderRight: `3px solid ${e.c}` }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12 }} className="scrollbar-hide">
+          {["الكل", "محاضرة", "Deadline", "Exam", "Live", "Private"].map((f) => (
+            <Chip key={f} filled={calFilter === f} onClick={() => setCalFilter(f)}>{f}</Chip>
+          ))}
+        </div>
+        {shown.map((e) => (
+          <Card key={e.t + e.n} style={{ marginBottom: 8, borderRight: `3px solid ${e.c}` }} onClick={() => {
+            if (e.t === "Exam") go("u-exam")
+            else if (e.t === "Live") go("lives")
+            else if (e.t === "Private") go("book")
+            else if (course) { onOpenCourse(course.id); go("u-course") }
+          }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR }}>
               <div>
                 <Chip color={e.c}>{e.t}</Chip>
@@ -2672,6 +2830,7 @@ function UniversityExtras({
             </div>
           </Card>
         ))}
+        {!shown.length && <EmptyBlock title="لا أحداث" sub="غيّر الفلتر أو أضف حجزًا." actions={[{ label: "حجز حصة", onClick: () => go("book") }]}/>}
       </Page>
     )
   }
@@ -2700,11 +2859,17 @@ function UniversityExtras({
         </Card>
         <p style={{ fontFamily: AR, fontWeight: 800 }}>مواد الترم</p>
         {profile.courses.map((c) => (
-          <Card key={c.id} style={{ marginBottom: 8 }}>
-            <div style={{ fontFamily: AR, fontWeight: 700 }}>{c.name}{c.code ? ` · ${c.code}` : ""}</div>
+          <Card key={c.id} style={{ marginBottom: 8 }} onClick={() => { onOpenCourse(c.id); go("u-course") }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR }}>
+              <div style={{ fontWeight: 700 }}>{c.name}{c.code ? ` · ${c.code}` : ""}</div>
+              <span style={{ color: T.brand, fontWeight: 800 }}>{c.pct}%</span>
+            </div>
           </Card>
         ))}
-        <Btn variant="ghost" onClick={() => setProfile({ ...profile, courses: withProgress(profile.courses) })}>تحديث التقدم</Btn>
+        <Btn variant="ghost" onClick={() => {
+          setProfile({ ...profile, courses: withProgress(profile.courses) })
+          toast("تم تحديث نسب التقدم")
+        }}>تحديث التقدم</Btn>
       </Page>
     )
   }
@@ -2712,15 +2877,15 @@ function UniversityExtras({
   if (screen === "u-search") {
     const q = searchQ.trim().toLowerCase()
     const courseHits = profile.courses.filter((c) => !q || c.name.toLowerCase().includes(q) || (c.code && c.code.toLowerCase().includes(q)))
-    const showTeachers = !q || "مدرس".includes(q) || profile.courses.some((c) => c.name.toLowerCase().includes(q) || (c.code && q.includes(c.code.toLowerCase())))
-    const showLive = !q || "بث".includes(q) || "live".includes(q) || "مراجعة".includes(q)
-    const showPkg = !q || "باقة".includes(q) || profile.courses.some((c) => c.name.toLowerCase().includes(q))
+    const showTeachers = !q || q.includes("مدرس") || profile.courses.some((c) => c.name.toLowerCase().includes(q) || (c.code && q.includes(c.code.toLowerCase())))
+    const showLive = !q || q.includes("بث") || q.includes("live") || q.includes("مراجعة")
+    const showPkg = !q || q.includes("باقة") || profile.courses.some((c) => c.name.toLowerCase().includes(q))
     return (
       <Page title="بحث جامعي" onBack={() => go("u-home")}>
         <Input placeholder="مادة، كود، مدرس، بث، باقة…" value={searchQ} onChange={setSearchQ}/>
         <div style={{ height: 12 }}/>
         {courseHits.map((c) => (
-          <Card key={c.id} style={{ marginBottom: 8 }} onClick={() => go("u-course")}>
+          <Card key={c.id} style={{ marginBottom: 8 }} onClick={() => { onOpenCourse(c.id); go("u-course") }}>
             <Chip color={T.brand}>مادة</Chip>
             <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 6 }}>{c.name}{c.code ? ` · ${c.code}` : ""}</div>
           </Card>
@@ -4293,6 +4458,11 @@ function ExtraFlow({ screen, go, ctx }: {
     setUni?: (p: UniProfile) => void
     setDraft?: (d: UniDraft | ((p: UniDraft) => UniDraft)) => void
     activeCourseId?: string | null
+    onOpenCourse?: (id: string) => void
+    plan?: PlanId
+    setPlan?: (p: PlanId) => void
+    walletBalance?: number
+    setWalletBalance?: (n: number | ((p: number) => number)) => void
   }
 }) {
   const toast = useToast()
@@ -4613,7 +4783,7 @@ function ExtraFlow({ screen, go, ctx }: {
   if (screen === "s-pay") return (
     <Page title="المدفوعات" onBack={() => go("s-account")}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-        <Card onClick={() => go("s-wallet")}><div style={{ fontFamily: AR, color: T.muted, fontSize: 12 }}>المحفظة</div><div style={{ fontFamily: LAT, fontWeight: 800 }}>450 ج.م</div></Card>
+        <Card onClick={() => go("s-wallet")}><div style={{ fontFamily: AR, color: T.muted, fontSize: 12 }}>المحفظة</div><div style={{ fontFamily: LAT, fontWeight: 800 }}>{ctx.walletBalance ?? 450} ج.م</div></Card>
         <Card onClick={() => go("s-plans")}><div style={{ fontFamily: AR, color: T.muted, fontSize: 12 }}>الاشتراك</div><div style={{ fontFamily: AR, fontWeight: 800 }}>Student Plus</div></Card>
         <Card onClick={() => go("teac-ai")}><div style={{ fontFamily: AR, color: T.muted, fontSize: 12 }}>AI</div><div style={{ fontFamily: AR, fontWeight: 800 }}>65% مستخدم</div></Card>
         <Card onClick={() => go("s-pkgs")}><div style={{ fontFamily: AR, color: T.muted, fontSize: 12 }}>الباقات</div><div style={{ fontFamily: AR, fontWeight: 800 }}>2 نشطة</div></Card>
@@ -4779,11 +4949,11 @@ function ExtraFlow({ screen, go, ctx }: {
       <p style={{ fontFamily: AR, color: T.sub }}>الصورة غير واضحة. ارفع صورة أوضح لوجه البطاقة الأمامي والخلفي.</p>
     </Page>
   )
-  if (screen === "s-wallet") return <StudentWallet go={go}/>
-  if (screen === "add-money") return <AddMoney go={go}/>
+  if (screen === "s-wallet") return <StudentWallet go={go} balance={ctx.walletBalance ?? 450}/>
+  if (screen === "add-money") return <AddMoney go={go} onTopUp={(n) => ctx.setWalletBalance?.((p) => p + n)}/>
   if (screen === "pay-ok") return (
     <Page title="تمت العملية" onBack={() => go("s-wallet")} footer={<Btn onClick={() => go("s-wallet")}>العودة للمحفظة</Btn>}>
-      <SuccessBlock title="تمت العملية بنجاح" sub="250 ج.م · رقم TX-88421 · بطاقة بنكية" cta="عرض الإيصال" onCta={() => go("tx-detail")}/>
+      <SuccessBlock title="تمت العملية بنجاح" sub={`${ctx.walletBalance ?? 450} ج.م رصيد حالي · رقم TX-88421`} cta="عرض الإيصال" onCta={() => go("tx-detail")}/>
     </Page>
   )
   if (screen === "pay-fail") return (
@@ -4895,12 +5065,17 @@ function ExtraFlow({ screen, go, ctx }: {
       ))}
     </Page>
   )
-  if (screen === "s-plans" || screen === "t-plans") return <Plans go={go} teacher={screen==="t-plans"}/>
-  if (screen === "checkout") return <Checkout go={go}/>
+  if (screen === "s-plans" || screen === "t-plans") return <Plans go={go} teacher={screen==="t-plans"} plan={ctx.plan ?? "free"}/>
+  if (screen === "checkout") return <Checkout go={go} onConfirm={() => ctx.setPlan?.(ctx.role === "t" ? "pro" : "plus")}/>
   if (screen === "sub-ok") return (
     <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <StatusBar/>
-      <SuccessBlock title="تم تفعيل اشتراكك 🎉" sub="Student Plus · التجديد 19 سبتمبر 2026" cta="ابدأ الاستخدام" onCta={() => go("s-home")}/>
+      <SuccessBlock
+        title="تم تفعيل اشتراكك 🎉"
+        sub={ctx.role === "t" ? "Teacher Pro · التجديد 19 سبتمبر 2026" : "Student Plus · التجديد 19 سبتمبر 2026"}
+        cta="ابدأ الاستخدام"
+        onCta={() => go(ctx.uni ? "u-home" : ctx.role === "t" ? "t-home" : "s-home")}
+      />
       <div style={{ padding: 24 }}><Btn variant="ghost" onClick={() => go("sub-manage")}>إدارة الاشتراك</Btn></div>
     </div>
   )
@@ -5225,15 +5400,15 @@ function TeacherId({ go }: { go: Go }) {
   )
 }
 
-function StudentWallet({ go }: { go: Go }) {
+function StudentWallet({ go, balance }: { go: Go; balance: number }) {
   return (
     <Page title="محفظتي" onBack={() => go("s-account")}>
-      <BalanceCard label="الرصيد المتاح" amount="450" onClick={() => go("add-money")}/>
+      <BalanceCard label="الرصيد المتاح" amount={String(balance)} onClick={() => go("add-money")}/>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
         <Card onClick={() => go("add-money")}><div style={{ fontFamily: AR, fontWeight: 700 }}>إضافة رصيد</div></Card>
         <Card onClick={() => go("tx")}><div style={{ fontFamily: AR, fontWeight: 700 }}>المعاملات</div></Card>
       </div>
-      <Card style={{ marginBottom: 8 }} onClick={() => go("add-money")}><div style={{ fontFamily: AR }}>رصيد نقدي 370 ج.م</div></Card>
+      <Card style={{ marginBottom: 8 }} onClick={() => go("add-money")}><div style={{ fontFamily: AR }}>رصيد نقدي {Math.max(0, balance - 80)} ج.م</div></Card>
       <Card style={{ marginBottom: 8 }} onClick={() => go("referral")}><div style={{ fontFamily: AR }}>رصيد مكافآت 80 ج.م · داخل Teac Teacher فقط</div></Card>
       <Btn variant="ghost" onClick={() => go("coupon")}>الكوبونات والخطط</Btn>
       <Btn variant="ghost" onClick={() => go("s-plans")}>عرض خطط الاشتراك</Btn>
@@ -5241,11 +5416,11 @@ function StudentWallet({ go }: { go: Go }) {
   )
 }
 
-function AddMoney({ go }: { go: Go }) {
+function AddMoney({ go, onTopUp }: { go: Go; onTopUp: (n: number) => void }) {
   const [amt, setAmt] = useState("250")
   const [method, setMethod] = useState("بطاقة بنكية")
   return (
-    <Page title="إضافة رصيد" onBack={() => go("s-wallet")} footer={<Btn onClick={() => go("pay-ok")}>تأكيد الدفع · {method}</Btn>}>
+    <Page title="إضافة رصيد" onBack={() => go("s-wallet")} footer={<Btn onClick={() => { onTopUp(Number(amt) || 0); go("pay-ok") }}>تأكيد الدفع · {method}</Btn>}>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>{["100","250","500"].map((x) => (
         <button key={x} onClick={() => setAmt(x)} style={{ flex: 1, padding: 12, borderRadius: 14, border: `1.5px solid ${amt===x?T.brand:T.border}`, background: amt===x?T.brandLight:T.card, fontFamily: AR, fontWeight: 800, cursor: "pointer" }}>{x}</button>
       ))}</div>
@@ -5473,16 +5648,16 @@ function Withdraw({ go, verified }: { go: Go; verified: boolean }) {
   )
 }
 
-function Plans({ go, teacher }: { go: Go; teacher: boolean }) {
+function Plans({ go, teacher, plan }: { go: Go; teacher: boolean; plan: PlanId }) {
   const [yr, setYr] = useState(false)
   const plans = teacher ? [
-    { n: "Teacher Free", f: "فصول محدودة · طلاب محدودون · رصيد AI أساسي", cta: "خطتك الحالية" },
-    { n: "Teacher Pro", f: "مساعد متقدم · تحليلات · تقارير", cta: "اشترك الآن", best: true },
+    { n: "Teacher Free", f: "فصول محدودة · طلاب محدودون · رصيد AI أساسي", cta: plan === "free" ? "خطتك الحالية" : "اختيار" },
+    { n: "Teacher Pro", f: "مساعد متقدم · تحليلات · تقارير", cta: plan === "pro" ? "خطتك الحالية" : "اشترك الآن", best: true },
     { n: "Teacher Business", f: "سعة أكبر · دعم مميز · إدارة أوسع", cta: "اشترك الآن" },
   ] : [
-    { n: "مجانية", f: "انضم لفصول · واجبات · استخدام AI محدود", cta: "خطتك الحالية" },
-    { n: "Student Plus", f: "تحليلات أعمق · رصيد AI أعلى · خطط مذاكرة", cta: "اشترك الآن", best: true },
-    { n: "Student Premium", f: "رصيد AI أعلى وفق سياسة الاستخدام العادل", cta: "اشترك الآن" },
+    { n: "مجانية", f: "انضم لفصول · واجبات · استخدام AI محدود", cta: plan === "free" ? "خطتك الحالية" : "اختيار" },
+    { n: "Student Plus", f: "تحليلات أعمق · رصيد AI أعلى · خطط مذاكرة", cta: plan === "plus" ? "خطتك الحالية" : "اشترك الآن", best: true },
+    { n: "Student Premium", f: "رصيد AI أعلى وفق سياسة الاستخدام العادل", cta: plan === "pro" ? "خطتك الحالية" : "اشترك الآن" },
   ]
   return (
     <Page title={teacher?"خطط المدرسين":"خطط الطالب"} onBack={() => go(teacher?"t-account":"s-account")}>
@@ -5494,7 +5669,7 @@ function Plans({ go, teacher }: { go: Go; teacher: boolean }) {
         <Card key={p.n} style={{ marginBottom: 10, border: p.best ? `1.5px solid ${T.brand}` : undefined }} onClick={() => p.cta!=="خطتك الحالية" && go("checkout")}>
           {p.best && <Chip filled>الأكثر اختياراً</Chip>}
           <div style={{ fontFamily: AR, fontWeight: 800, fontSize: 16, margin: "8px 0 4px" }}>{p.n}</div>
-          <div style={{ fontFamily: AR, color: T.sub, fontSize: 13 }}>{p.f}</div>
+          <div style={{ fontFamily: AR, color: T.sub, fontSize: 13 }}>{p.f}{yr ? " · وفّر مع السنوي" : ""}</div>
           <div style={{ fontFamily: AR, fontWeight: 700, color: T.brand, marginTop: 8 }}>{p.cta}</div>
         </Card>
       ))}
@@ -5503,11 +5678,11 @@ function Plans({ go, teacher }: { go: Go; teacher: boolean }) {
   )
 }
 
-function Checkout({ go }: { go: Go }) {
+function Checkout({ go, onConfirm }: { go: Go; onConfirm: () => void }) {
   const [code, setCode] = useState("")
   const [st, setSt] = useState("")
   return (
-    <Page title="ملخص الاشتراك" onBack={() => go("s-plans")} footer={<Btn onClick={() => go("sub-ok")}>تأكيد الاشتراك</Btn>}>
+    <Page title="ملخص الاشتراك" onBack={() => go("s-plans")} footer={<Btn onClick={() => { onConfirm(); go("sub-ok") }}>تأكيد الاشتراك</Btn>}>
       <PriceSummary rows={[
         { k: "الخطة", v: "Student Plus" },
         { k: "الفترة", v: "شهري" },
@@ -5654,6 +5829,7 @@ export default function App() {
   const [kids] = useState<Kid[]>(DEMO_KIDS)
   const [kidId, setKidId] = useState("ahmed")
   const [plan, setPlan] = useState<PlanId>("free")
+  const [walletBalance, setWalletBalance] = useState(450)
   const [hasPackage, setHasPackage] = useState(false)
   const [hasGuardian, setHasGuardian] = useState(false)
   const [verified, setVerified] = useState(false)
@@ -5708,6 +5884,7 @@ export default function App() {
       : s))
   }
   const uniSetupScreens: Screen[] = ["u-uni", "u-faculty", "u-dept", "u-year", "u-sem", "u-courses", "u-course-add"]
+  const uniExtraScreens: Screen[] = ["u-exam", "u-calendar", "u-edit", "u-search"]
   const activeCourseName = uniProfile?.courses.find((c) => c.id === activeCourseId)?.name
     ?? uniProfile?.courses[0]?.name
 
@@ -5745,12 +5922,30 @@ export default function App() {
           <UniversityHome
             go={go}
             profile={uniProfile}
+            setProfile={setUniProfile}
             hasTeacher={hasTeacher}
             onOpenCourse={setActiveCourseId}
           />
         )}
         {screen === "u-course" && uniProfile && (
-          <UniversityCourse go={go} profile={uniProfile} courseId={activeCourseId}/>
+          <UniversityCourse
+            go={go}
+            profile={uniProfile}
+            setProfile={setUniProfile}
+            courseId={activeCourseId}
+            onOpenCourse={setActiveCourseId}
+          />
+        )}
+        {uniExtraScreens.includes(screen) && uniProfile && (
+          <UniversityExtras
+            screen={screen}
+            go={go}
+            profile={uniProfile}
+            setProfile={setUniProfile}
+            setDraft={setUniDraft}
+            activeCourseId={activeCourseId}
+            onOpenCourse={setActiveCourseId}
+          />
         )}
         {screen === "u-course-ai" && (
           <AIChat
@@ -5814,6 +6009,11 @@ export default function App() {
           setUni: setUniProfile,
           setDraft: setUniDraft,
           activeCourseId,
+          onOpenCourse: setActiveCourseId,
+          plan,
+          setPlan,
+          walletBalance,
+          setWalletBalance,
         }}/>
       </div>
       </ToastHost>
