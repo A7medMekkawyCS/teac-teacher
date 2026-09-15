@@ -14,9 +14,32 @@ import {
   facultyQuickActions,
   facultyAiBlurb,
   withProgress,
+  unisByCountry,
   type UniProfile,
   type FacultyKind,
 } from "./universityCatalog"
+import {
+  ARAB_COUNTRIES,
+  DEFAULT_COUNTRY,
+  DEMO_COURSES,
+  countryById,
+  emptyCourseDraft,
+  filterCourses,
+  type CountryId,
+  type MarketCourse,
+} from "./coursesCatalog"
+import {
+  buildTraineeLives,
+  canAfford,
+  certificateUnlocked,
+  completeLesson,
+  makeEnrollment,
+  progressPct,
+  rateLive,
+  reviewsFor,
+  setLiveStatus,
+  type CourseEnrollment,
+} from "./traineeLogic"
 
 // ─── Brand Tokens ─────────────────────────────────────────────────────────────
 const AR = "'Cairo', sans-serif"
@@ -100,29 +123,30 @@ const Ic = {
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 function LogoMark({ size = 48, light = false }: { size?: number; light?: boolean }) {
-  const id = `lg${size}`
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={light ? "rgba(255,255,255,0.25)" : T.brand}/>
-          <stop offset="100%" stopColor={light ? "rgba(255,255,255,0.1)" : T.ai}/>
-        </linearGradient>
-      </defs>
-      <rect width="48" height="48" rx={size * 0.25} fill={light ? "rgba(255,255,255,0.18)" : `url(#${id})`} stroke={light ? "rgba(255,255,255,0.3)" : "none"} strokeWidth={light ? 1 : 0}/>
-      {/* T crossbar */}
-      <rect x="9" y="13" width="30" height="5.5" rx="2.75" fill="white"/>
-      {/* T stem */}
-      <rect x="21.25" y="13" width="5.5" height="22" rx="2.75" fill="white"/>
-      {/* AI sparkle */}
-      <path d="M37 8 l1.2 4 4 1.2 -4 1.2 -1.2 4 -1.2-4 -4-1.2 4-1.2 Z" fill="white" opacity={light ? 0.9 : 0.85}/>
-    </svg>
+    <img
+      src="/brand/logo.png"
+      alt="Teac Teacher"
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.28,
+        display: "block",
+        flexShrink: 0,
+        objectFit: "cover",
+        boxShadow: light
+          ? "0 0 0 1.5px rgba(255,255,255,0.35), 0 4px 14px rgba(0,0,0,0.12)"
+          : "0 4px 16px rgba(47,158,138,0.22)",
+      }}
+    />
   )
 }
 
 function Wordmark({ size = 32, light = false }: { size?: number; light?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: Math.max(8, size * 0.28) }}>
       <LogoMark size={size} light={light}/>
       <div style={{ fontFamily: LAT, lineHeight: 1 }}>
         <span style={{ fontSize: size * 0.6, fontWeight: 900, color: light ? "white" : T.brand, letterSpacing: -0.5 }}>TEAC</span>
@@ -382,9 +406,15 @@ type Screen =
   | "u-uni" | "u-faculty" | "u-dept" | "u-year" | "u-sem" | "u-courses" | "u-course-add"
   | "u-home" | "u-course" | "u-course-ai" | "u-exam" | "u-calendar" | "u-edit" | "u-search" | "u-teachers"
   | "t-teach-type" | "t-uni-spec"
+  | "u-country"
+  | "courses" | "course-detail" | "course-learn" | "my-courses"
+  | "t-courses" | "t-course-create" | "t-course-edit"
+  | "tr-setup" | "tr-home"
+  | "tr-checkout" | "tr-progress" | "tr-certificate"
+  | "tr-lives" | "tr-live-wait" | "tr-live-end"
 
 type Go = (s: Screen) => void
-type Role = "s" | "t" | "p"
+type Role = "s" | "t" | "p" | "tr"
 
 type Kid = {
   id: string
@@ -415,6 +445,7 @@ const FEATURES = {
   live: true,
   marketplace: true,
   guardian: true,
+  courses: true,
 }
 
 type MoreAccess = {
@@ -447,6 +478,8 @@ type MoreAccess = {
   upgradePro: boolean
   isUniversity: boolean
   uniLabel?: string
+  courses: boolean
+  teachCourses: boolean
 }
 
 function resolveMoreAccess(s: {
@@ -461,22 +494,31 @@ function resolveMoreAccess(s: {
   kids: Kid[]
   kidId: string
   uni?: UniProfile | null
+  teachOffer?: "lessons" | "courses" | "both"
 }): MoreAccess {
   const kid = s.kids.find((k) => k.id === s.kidId)
   const student = s.role === "s"
   const teacher = s.role === "t"
   const parent = s.role === "p"
+  const trainee = s.role === "tr"
   const teacherPro = teacher && s.plan === "pro"
   const teacherMoney = teacher && s.verified
   const isUniversity = student && !!s.uni
-  const name = teacher ? "أ/ محمد أحمد" : "أحمد محمد"
+  const teachCourses = teacher && (s.teachOffer === "courses" || s.teachOffer === "both") && FEATURES.courses
+  const name = teacher ? "أ/ محمد أحمد" : trainee ? "أحمد متدرّب" : "أحمد محمد"
   const uniLabel = s.uni
     ? `${s.uni.facultyName.replace("كلية ", "")} · ${s.uni.year}`
     : undefined
   const subtitle = teacher
-    ? (s.verified ? (teacherPro ? "Teacher Pro · موثّق" : "مدرس موثّق · خطة مجانية") : "بانتظار التوثيق · خطة مجانية")
+    ? (s.verified
+      ? (teachCourses && s.teachOffer === "courses"
+        ? (teacherPro ? "مدرب كورسات · Pro" : "مدرب كورسات · مجاني")
+        : (teacherPro ? "Teacher Pro · موثّق" : "مدرس موثّق · خطة مجانية"))
+      : "بانتظار التوثيق · خطة مجانية")
     : parent
       ? (s.hasKids ? `ولي أمر · ${s.kids.length} أبناء` : "ولي أمر")
+      : trainee
+        ? (s.plan === "plus" ? "متدرّب · Plus · كورسات" : "متدرّب · كورسات مسجّلة وLive")
       : isUniversity
         ? `${uniLabel}${s.plan === "plus" ? " · Plus" : ""}`
         : (s.plan === "plus" ? "أولى ثانوي · Student Plus" : "أولى ثانوي · خطة مجانية")
@@ -490,14 +532,14 @@ function resolveMoreAccess(s: {
     hasStudents: !s.teacherEmpty,
     hasKids: s.hasKids,
     hasPackage: s.hasPackage,
-    hasGuardian: s.hasGuardian && !isUniversity,
-    wallet: (student && (s.hasTeacher || isUniversity) && FEATURES.wallet) || (parent && s.hasKids && !!kid?.canFinance && FEATURES.wallet),
-    pay: (student && (s.hasTeacher || isUniversity)) || (parent && s.hasKids && !!kid?.canFinance),
+    hasGuardian: s.hasGuardian && !isUniversity && !trainee,
+    wallet: ((student || trainee) && FEATURES.wallet && (trainee || s.hasTeacher || isUniversity)) || (parent && s.hasKids && !!kid?.canFinance && FEATURES.wallet),
+    pay: ((student || trainee) && (trainee || s.hasTeacher || isUniversity)) || (parent && s.hasKids && !!kid?.canFinance),
     withdraw: teacherMoney,
     sellPackages: teacherPro && s.verified && FEATURES.packages,
     live: teacherPro && FEATURES.live,
     marketplace: teacher && s.verified && FEATURES.marketplace,
-    sub: (student && s.plan !== "free") || (teacher && s.plan !== "free") || (parent && s.hasKids && !!kid?.canFinance),
+    sub: ((student || trainee) && s.plan !== "free") || (teacher && s.plan !== "free") || (parent && s.hasKids && !!kid?.canFinance),
     chat: (student && s.hasTeacher) || (teacher && !s.teacherEmpty) || (parent && s.hasKids && !!kid?.canTeachers),
     book: (student && (s.hasTeacher || isUniversity)) || (teacher && s.verified) || (parent && s.hasKids),
     childAcademic: parent && s.hasKids && !!kid?.canReports,
@@ -510,6 +552,8 @@ function resolveMoreAccess(s: {
     upgradePro: teacher && s.verified && s.plan !== "pro",
     isUniversity,
     uniLabel,
+    courses: FEATURES.courses && (student || trainee || teachCourses),
+    teachCourses,
   }
 }
 
@@ -932,6 +976,418 @@ function ActionCard({ label, onClick, sub }: { label: string; onClick: () => voi
 }
 
 // ─── SCREEN 1 · Splash ────────────────────────────────────────────────────────
+function TraineeSetup({
+  go, countryId, setCountryId,
+}: {
+  go: Go
+  countryId: CountryId
+  setCountryId: (id: CountryId) => void
+}) {
+  const [step, setStep] = useState(0)
+  const [name, setName] = useState("أحمد متدرّب")
+  const [interests, setInterests] = useState<string[]>(["علوم حاسب", "لغات"])
+  const toggle = (x: string) => setInterests((p) => p.includes(x) ? p.filter((i) => i !== x) : [...p, x])
+  return (
+    <Page title="إعداد المتدرّب" onBack={() => step ? setStep(step - 1) : go("role")} footer={
+      <Btn onClick={() => step < 1 ? setStep(1) : go("tr-home")}>{step < 1 ? "التالي" : "ابدأ التعلم"}</Btn>
+    }>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        {[0, 1].map((i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? T.ai : T.border }}/>)}
+      </div>
+      {step === 0 && <>
+        <h1 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 900, fontFamily: AR }}>بياناتك</h1>
+        <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>حساب متدرّب = تركيز على الكورسات (مسجّل + Live)</p>
+        <Input placeholder="الاسم" value={name} onChange={setName}/>
+        <div style={{ height: 10 }}/>
+        <Input placeholder="البريد الإلكتروني" value="trainee@teac.app"/>
+        <p style={{ fontFamily: AR, fontWeight: 800, marginTop: 14 }}>دولتك</p>
+        {ARAB_COUNTRIES.map((c) => (
+          <Card key={c.id} style={{ marginBottom: 8, border: countryId === c.id ? `1.5px solid ${T.ai}` : undefined }} onClick={() => setCountryId(c.id)}>
+            <div style={{ fontFamily: AR, fontWeight: 800 }}>{c.flag} {c.name}</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{c.nameEn} · {c.currency}</div>
+          </Card>
+        ))}
+      </>}
+      {step === 1 && <>
+        <h1 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 900, fontFamily: AR }}>اهتماماتك</h1>
+        <p style={{ fontFamily: AR, color: T.sub }}>هنقترح كورسات مناسبة حسب دولتك واهتماماتك.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {["علوم حاسب", "هندسة", "طب", "أعمال", "لغات", "تصميم", "بيانات", "مهارات عامة"].map((x) => (
+            <Chip key={x} filled={interests.includes(x)} color={T.ai} onClick={() => toggle(x)}>{x}</Chip>
+          ))}
+        </div>
+      </>}
+    </Page>
+  )
+}
+
+function TraineeHome({
+  go, countryId, enrollments, courses, walletBalance, onOpenCourse,
+}: {
+  go: Go
+  countryId: CountryId
+  enrollments: CourseEnrollment[]
+  courses: MarketCourse[]
+  walletBalance: number
+  onOpenCourse: (id: string) => void
+}) {
+  const country = countryById(countryId)
+  const featured = filterCourses(courses, { countryId }).slice(0, 3)
+  const enrolledCourses = courses.filter((c) => enrollments.some((e) => e.courseId === c.id))
+  const avgPct = enrolledCourses.length
+    ? Math.round(enrolledCourses.reduce((s, c) => s + progressPct(enrollments.find((e) => e.courseId === c.id), c), 0) / enrolledCourses.length)
+    : 0
+  const lives = buildTraineeLives(courses, enrollments).filter((l) => l.bucket !== "past").slice(0, 2)
+  const certs = enrolledCourses.filter((c) => certificateUnlocked(enrollments.find((e) => e.courseId === c.id), c)).length
+  const navItems = [
+    { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
+    { key: "courses", label: "الكورسات", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
+    { key: "mine", label: "كورساتي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.classes}</span> },
+    { key: "lives", label: "Live", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.sparkle}</span> },
+    { key: "more", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
+  ]
+  const onNav = (k: string) => {
+    if (k === "home") go("tr-home")
+    if (k === "courses") go("courses")
+    if (k === "mine") go("my-courses")
+    if (k === "lives") go("tr-lives")
+    if (k === "more") go("s-account")
+  }
+  return (
+    <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
+      <div style={{ background: T.gradAI, padding: "44px 20px 18px", flexShrink: 0 }}>
+        <StatusBar light/>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: AR }}>أهلاً متدرّب 👋</h1>
+            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.85)", fontFamily: AR }}>{country.flag} {country.name} · كورسات مسجّلة وLive</p>
+          </div>
+          <button onClick={() => go("notifs")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, color: "white", cursor: "pointer" }}>
+            <span style={{ width: 20, height: 20, display: "flex" }}>{Ic.bell}</span>
+          </button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
+          <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ fontFamily: LAT, fontWeight: 900, color: "white", fontSize: 18 }}>{enrollments.length}</div>
+            <div style={{ fontFamily: AR, fontSize: 11, color: "rgba(255,255,255,0.8)" }}>مشترك</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ fontFamily: LAT, fontWeight: 900, color: "white", fontSize: 18 }}>{avgPct}%</div>
+            <div style={{ fontFamily: AR, fontSize: 11, color: "rgba(255,255,255,0.8)" }}>تقدّم</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ fontFamily: LAT, fontWeight: 900, color: "white", fontSize: 18 }}>{certs}</div>
+            <div style={{ fontFamily: AR, fontSize: 11, color: "rgba(255,255,255,0.8)" }}>شهادات</div>
+          </div>
+        </div>
+      </div>
+      <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "14px 20px 20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          <QuickTile label="سوق الكورسات" sub={country.name} onClick={() => go("courses")} color={T.ai}/>
+          <QuickTile label="محفظتي" sub={`${walletBalance} ${country.currency}`} onClick={() => go("s-wallet")} color={T.emerald}/>
+          <QuickTile label="تقدّمي" sub={`${avgPct}%`} onClick={() => go("tr-progress")} color={T.brand}/>
+          <QuickTile label="جلسات Live" sub={`${lives.length} قادمة`} onClick={() => go("tr-lives")} color={T.teal}/>
+        </div>
+        {enrolledCourses.length > 0 && (
+          <HomeSection title="كمّل من حيث وقفت">
+            {enrolledCourses.slice(0, 3).map((c) => {
+              const en = enrollments.find((e) => e.courseId === c.id)
+              const pct = progressPct(en, c)
+              return (
+                <Card key={c.id} style={{ marginBottom: 10 }} onClick={() => { onOpenCourse(c.id); go("course-learn") }}>
+                  <div style={{ fontFamily: AR, fontWeight: 900 }}>{c.title}</div>
+                  <ProgressBar pct={pct}/>
+                  <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 6 }}>{pct}% · {c.trainer}</div>
+                </Card>
+              )
+            })}
+          </HomeSection>
+        )}
+        {lives.length > 0 && (
+          <HomeSection title="Live قريبة">
+            {lives.map((l) => (
+              <Card key={`${l.courseId}-${l.liveId}`} style={{ marginBottom: 10, borderRight: `3px solid ${T.ai}` }} onClick={() => { onOpenCourse(l.courseId); go("tr-live-wait") }}>
+                <div style={{ fontFamily: AR, fontWeight: 900 }}>{l.title}</div>
+                <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{l.courseTitle} · {l.when}</div>
+              </Card>
+            ))}
+          </HomeSection>
+        )}
+        <HomeSection title="مقترح ليك في دولتك">
+          {featured.map((c) => (
+            <Card key={c.id} style={{ marginBottom: 10 }} onClick={() => { onOpenCourse(c.id); go(enrollments.some((e) => e.courseId === c.id) ? "course-learn" : "course-detail") }}>
+              <div style={{ fontFamily: AR, fontWeight: 900 }}>{c.title}</div>
+              <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{c.trainer} · {c.price} {country.currency} · ★ {c.rating}</div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                {c.tags.slice(0, 2).map((t) => <Chip key={t} color={T.ai}>{t}</Chip>)}
+              </div>
+            </Card>
+          ))}
+          {!featured.length && (
+            <EmptyBlock title="لسه مفيش كورسات للدولة دي" sub="تصفح دولة تانية من سوق الكورسات." actions={[{ label: "سوق الكورسات", onClick: () => go("courses") }]}/>
+          )}
+        </HomeSection>
+        <Card style={{ background: T.aiXLight, marginBottom: 10 }} onClick={() => go("tr-certificate")}>
+          <div style={{ fontFamily: AR, fontWeight: 900 }}>شهاداتي ({certs})</div>
+          <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, margin: "6px 0 0" }}>افتح الشهادة عند وصول التقدّم لـ 80%.</p>
+        </Card>
+        <Card style={{ background: T.brandXLight }} onClick={() => go("ai-chat")}>
+          <AiTag/>
+          <div style={{ fontFamily: AR, fontWeight: 900, marginTop: 6 }}>المعلم الذكي للمتدرّبين</div>
+          <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, margin: "6px 0 0" }}>راجع مفاهيم الكورس أو حضّر لجلسة Live.</p>
+        </Card>
+      </div>
+      <NavBar items={navItems} active="home" onSelect={onNav}/>
+    </div>
+  )
+}
+
+function TraineeCheckout({
+  go, course, currency, balance, onPay,
+}: {
+  go: Go
+  course: MarketCourse | null
+  currency: string
+  balance: number
+  onPay: () => boolean
+}) {
+  const toast = useToast()
+  if (!course) return <Page title="الدفع" onBack={() => go("courses")}><p style={{ fontFamily: AR }}>الكورس غير موجود.</p></Page>
+  const ok = canAfford(balance, course.price)
+  return (
+    <Page title="إتمام الاشتراك" onBack={() => go("course-detail")} footer={
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Btn onClick={() => {
+          if (!ok) { toast("الرصيد غير كافٍ"); go("add-money"); return }
+          if (onPay()) { toast("تم الاشتراك بنجاح"); go("course-learn") }
+        }}>{ok ? `ادفع من المحفظة · ${course.price} ${currency}` : "شحن المحفظة أولًا"}</Btn>
+        <Btn variant="secondary" onClick={() => go("s-wallet")}>فتح المحفظة (رصيدك {balance} {currency})</Btn>
+      </div>
+    }>
+      <Card style={{ marginBottom: 12 }}>
+        <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 18 }}>{course.title}</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 6 }}>{course.trainer} · {course.lessons.length} دروس · {course.lives.length} Live</div>
+      </Card>
+      <Card style={{ marginBottom: 12, background: T.brandXLight }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR }}>
+          <span>سعر الكورس</span>
+          <span style={{ fontFamily: LAT, fontWeight: 900 }}>{course.price} {currency}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR, marginTop: 8 }}>
+          <span>رصيد المحفظة</span>
+          <span style={{ fontFamily: LAT, fontWeight: 900, color: ok ? T.emerald : T.rose }}>{balance} {currency}</span>
+        </div>
+        {!ok && <p style={{ fontFamily: AR, fontSize: 13, color: T.rose, margin: "10px 0 0" }}>تحتاج شحن {(course.price - balance)} {currency} لإكمال الاشتراك.</p>}
+      </Card>
+      <p style={{ fontFamily: AR, color: T.sub, lineHeight: 1.7 }}>بعد الدفع هتفتح الدروس المسجّلة وجلسات Live المرتبطة بالكورس، ويتسجّل التقدّم تلقائيًا.</p>
+    </Page>
+  )
+}
+
+function TraineeProgress({
+  go, enrollments, courses, onOpenCourse,
+}: {
+  go: Go
+  enrollments: CourseEnrollment[]
+  courses: MarketCourse[]
+  onOpenCourse: (id: string) => void
+}) {
+  const list = courses.filter((c) => enrollments.some((e) => e.courseId === c.id))
+  return (
+    <Page title="تقدّمي" onBack={() => go("tr-home")} footer={
+      <Btn variant="secondary" onClick={() => go("tr-certificate")}>شهاداتي</Btn>
+    }>
+      {!list.length && (
+        <EmptyBlock title="مفيش كورسات مشترَكة" sub="اشترك من سوق الكورسات وابدأ التعلّم." actions={[{ label: "سوق الكورسات", onClick: () => go("courses") }]}/>
+      )}
+      {list.map((c) => {
+        const en = enrollments.find((e) => e.courseId === c.id)!
+        const pct = progressPct(en, c)
+        const done = en.completedLessonIds.length
+        const attended = Object.values(en.liveAttendance).filter((s) => s === "attended").length
+        return (
+          <Card key={c.id} style={{ marginBottom: 12 }} onClick={() => { onOpenCourse(c.id); go("course-learn") }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ fontFamily: AR, fontWeight: 900, flex: 1 }}>{c.title}</div>
+              {certificateUnlocked(en, c) && <Chip color={T.emerald}>شهادة</Chip>}
+            </div>
+            <ProgressBar pct={pct}/>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 8 }}>
+              {pct}% · {done}/{c.lessons.length} دروس · {attended} Live حضرتها
+            </div>
+          </Card>
+        )
+      })}
+    </Page>
+  )
+}
+
+function TraineeCertificates({
+  go, enrollments, courses, onOpenCourse,
+}: {
+  go: Go
+  enrollments: CourseEnrollment[]
+  courses: MarketCourse[]
+  onOpenCourse: (id: string) => void
+}) {
+  const ready = courses.filter((c) => certificateUnlocked(enrollments.find((e) => e.courseId === c.id), c))
+  const almost = courses.filter((c) => {
+    const en = enrollments.find((e) => e.courseId === c.id)
+    if (!en) return false
+    const p = progressPct(en, c)
+    return p > 0 && p < 80
+  })
+  return (
+    <Page title="شهاداتي" onBack={() => go("tr-progress")}>
+      <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>الشهادة تتفتح عند وصول التقدّم إلى 80% أو أعلى.</p>
+      {!ready.length && (
+        <EmptyBlock title="لسه مفيش شهادات" sub="كمّل الدروس واحضر Live عشان توصل لـ 80%." actions={[{ label: "تقدّمي", onClick: () => go("tr-progress") }]}/>
+      )}
+      {ready.map((c) => (
+        <Card key={c.id} style={{ marginBottom: 12, background: "linear-gradient(135deg,#ECFDF5,#F0FDFA)", border: `1px solid ${T.emerald}33` }} onClick={() => { onOpenCourse(c.id); go("course-learn") }}>
+          <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 17 }}>شهادة إتمام</div>
+          <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 8 }}>{c.title}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 6 }}>المدرّب: {c.trainer} · التقدّم {progressPct(enrollments.find((e) => e.courseId === c.id), c)}%</div>
+          <Chip color={T.emerald} filled>جاهزة للعرض</Chip>
+        </Card>
+      ))}
+      {almost.length > 0 && (
+        <>
+          <p style={{ fontFamily: AR, fontWeight: 800 }}>قرّبت تخلص</p>
+          {almost.map((c) => (
+            <Card key={c.id} style={{ marginBottom: 10 }} onClick={() => { onOpenCourse(c.id); go("course-learn") }}>
+              <div style={{ fontFamily: AR, fontWeight: 800 }}>{c.title}</div>
+              <ProgressBar pct={progressPct(enrollments.find((e) => e.courseId === c.id), c)}/>
+            </Card>
+          ))}
+        </>
+      )}
+    </Page>
+  )
+}
+
+function TraineeLives({
+  go, enrollments, courses, onOpenCourse, onSelectLive,
+}: {
+  go: Go
+  enrollments: CourseEnrollment[]
+  courses: MarketCourse[]
+  onOpenCourse: (id: string) => void
+  onSelectLive: (courseId: string, liveId: string) => void
+}) {
+  const [tab, setTab] = useState<"upcoming" | "today" | "past">("upcoming")
+  const rows = buildTraineeLives(courses, enrollments)
+  const list = rows.filter((r) => r.bucket === tab)
+  return (
+    <Page title="جلسات Live" onBack={() => go("tr-home")} footer={
+      <Btn variant="secondary" onClick={() => go("my-courses")}>كورساتي</Btn>
+    }>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {([
+          ["upcoming", "قادمة"],
+          ["today", "اليوم"],
+          ["past", "سابقة"],
+        ] as const).map(([k, l]) => (
+          <Chip key={k} filled={tab === k} color={T.ai} onClick={() => setTab(k)}>{l}</Chip>
+        ))}
+      </div>
+      {!enrollments.length && (
+        <EmptyBlock title="اشترك في كورس أولًا" sub="جلسات Live تظهر بعد الاشتراك." actions={[{ label: "سوق الكورسات", onClick: () => go("courses") }]}/>
+      )}
+      {!!enrollments.length && !list.length && (
+        <EmptyBlock title="مفيش جلسات هنا" sub="جرّب تبويب تاني أو كورس فيه Live." actions={[{ label: "كل التبويبات", onClick: () => setTab("upcoming") }]}/>
+      )}
+      {list.map((l) => (
+        <Card key={`${l.courseId}-${l.liveId}`} style={{ marginBottom: 10, borderRight: `3px solid ${T.ai}` }} onClick={() => {
+          onOpenCourse(l.courseId)
+          onSelectLive(l.courseId, l.liveId)
+          go(l.bucket === "past" ? "tr-live-end" : "tr-live-wait")
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ fontFamily: AR, fontWeight: 900 }}>{l.title}</div>
+            <Chip color={l.status === "attended" ? T.emerald : l.status === "missed" ? T.rose : T.ai}>
+              {l.status === "attended" ? "حضرت" : l.status === "missed" ? "لم تحضر" : "قادمة"}
+            </Chip>
+          </div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{l.courseTitle} · {l.when}</div>
+        </Card>
+      ))}
+    </Page>
+  )
+}
+
+function TraineeLiveWait({
+  go, course, liveId, onJoin, onMiss,
+}: {
+  go: Go
+  course: MarketCourse | null
+  liveId: string | null
+  onJoin: () => void
+  onMiss: () => void
+}) {
+  const live = course?.lives.find((l) => l.id === liveId) ?? course?.lives[0]
+  if (!course || !live) return <Page title="انتظار Live" onBack={() => go("tr-lives")}><p style={{ fontFamily: AR }}>الجلسة غير موجودة.</p></Page>
+  return (
+    <Page title="قبل الجلسة" onBack={() => go("tr-lives")} footer={
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Btn onClick={() => { onJoin(); go("live") }}>انضم الآن</Btn>
+        <Btn variant="ghost" onClick={() => { onMiss(); go("tr-lives") }}>لم أستطع الحضور</Btn>
+      </div>
+    }>
+      <Card style={{ marginBottom: 12, background: T.aiXLight }}>
+        <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 18 }}>{live.title}</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 6 }}>{live.when}</div>
+        <div style={{ fontFamily: AR, fontSize: 13, marginTop: 10 }}>الكورس: {course.title}</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.sub }}>المدرّب: {course.trainer}</div>
+      </Card>
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>حضّر بسرعة</p>
+      {course.lessons.slice(0, 2).map((l) => (
+        <Card key={l.id} style={{ marginBottom: 8 }}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{l.title}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{l.duration}</div>
+        </Card>
+      ))}
+      <Card style={{ background: T.brandXLight }} onClick={() => go("ai-chat")}>
+        <AiTag/>
+        <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 4 }}>اسأل المعلم الذكي قبل الدخول</div>
+      </Card>
+    </Page>
+  )
+}
+
+function TraineeLiveEnd({
+  go, course, liveId, onRate,
+}: {
+  go: Go
+  course: MarketCourse | null
+  liveId: string | null
+  onRate: (stars: number, note: string) => void
+}) {
+  const toast = useToast()
+  const [stars, setStars] = useState(5)
+  const [note, setNote] = useState("")
+  const live = course?.lives.find((l) => l.id === liveId) ?? course?.lives[0]
+  if (!course || !live) return <Page title="بعد الجلسة" onBack={() => go("tr-lives")}><p style={{ fontFamily: AR }}>الجلسة غير موجودة.</p></Page>
+  return (
+    <Page title="تقييم الجلسة" onBack={() => go("tr-lives")} footer={
+      <Btn onClick={() => { onRate(stars, note); toast("شكرًا! تم حفظ التقييم"); go("tr-progress") }}>إرسال التقييم</Btn>
+    }>
+      <Card style={{ marginBottom: 14, background: T.aiXLight, textAlign: "center", padding: 20 }}>
+        <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 18 }}>انتهت الجلسة</div>
+        <div style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 6 }}>{live.title}</div>
+      </Card>
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>قيّم الجلسة</p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Chip key={n} filled={stars === n} color={T.amber} onClick={() => setStars(n)}>★ {n}</Chip>
+        ))}
+      </div>
+      <Input placeholder="تعليق اختياري" value={note} onChange={setNote}/>
+      <p style={{ fontFamily: AR, fontSize: 13, color: T.muted, marginTop: 12 }}>حضورك يزوّد تقدّم الكورس شوية ويقرّبك من الشهادة.</p>
+    </Page>
+  )
+}
+
 function Splash({ go }: { go: () => void }) {
   useEffect(() => { const t = setTimeout(go, 2400); return () => clearTimeout(t) }, [go])
   return (
@@ -959,8 +1415,8 @@ function Splash({ go }: { go: () => void }) {
       ))}
       {/* Logo block */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, marginTop: 20 }}>
-        <div style={{ padding: 20, borderRadius: 32, background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.2)" }}>
-          <LogoMark size={80} light/>
+        <div style={{ padding: 10, borderRadius: 36, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.22)", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}>
+          <LogoMark size={88} light/>
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 44, fontWeight: 900, color: "white", letterSpacing: -1.5, lineHeight: 1 }}>TEAC</div>
@@ -1092,6 +1548,9 @@ function Onboard({ go, goLogin }: { go: () => void; goLogin: () => void }) {
           background: "none", border: "none", color: T.brand, fontSize: 15, fontWeight: 700,
           fontFamily: AR, cursor: "pointer", padding: "10px 16px",
         }}>تخطي</button>
+        <div style={{ position: "absolute", top: 54, right: 16, zIndex: 5 }}>
+          <LogoMark size={28}/>
+        </div>
         <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 8px 24px" }}>
           <OnboardArt slide={slide}/>
         </div>
@@ -1190,14 +1649,25 @@ function Login({ go, onForgot }: { go: () => void; onForgot: () => void }) {
 }
 
 // ─── SCREEN 4 · Role Select ───────────────────────────────────────────────────
-function RoleSelect({ goStudent, goTeacher, goParent }: { goStudent: () => void; goTeacher: () => void; goParent: () => void }) {
+function RoleSelect({ goStudent, goTeacher, goParent, goTrainee }: {
+  goStudent: () => void
+  goTeacher: () => void
+  goParent: () => void
+  goTrainee: () => void
+}) {
   const [sel, setSel] = useState<Role | null>(null)
   const roles = [
     { id: "s" as const, icon: Ic.book, title: "طالب", desc: "اتعلم، تابع تقدمك، احجز مع مدرس واستخدم المعلم الذكي.", color: T.brand, grad: T.gradBrand },
-    { id: "t" as const, icon: Ic.classes, title: "مدرس", desc: "أدر طلبتك، دروسك، حجوزاتك وأرباحك باستخدام أدوات ذكية.", color: T.emerald, grad: T.gradTeacher },
+    { id: "tr" as const, icon: Ic.robot, title: "متدرّب", desc: "اشترك في كورسات مسجّلة وجلسات Live من مدربين عبر الدول العربية.", color: T.ai, grad: T.gradAI },
+    { id: "t" as const, icon: Ic.classes, title: "مدرس / مدرب", desc: "حصص أو كورسات: أدر طلبتك، دروسك، حجوزاتك وأرباحك.", color: T.emerald, grad: T.gradTeacher },
     { id: "p" as const, icon: Ic.family, title: "ولي أمر", desc: "تابع أولادك، مستواهم الدراسي، حجوزاتهم ومدفوعاتهم من مكان واحد.", color: T.teal, grad: "linear-gradient(135deg, #0891B2 0%, #2F9E8A 100%)" },
   ]
-  const goSel = () => { if (sel === "t") goTeacher(); else if (sel === "p") goParent(); else if (sel === "s") goStudent() }
+  const goSel = () => {
+    if (sel === "t") goTeacher()
+    else if (sel === "p") goParent()
+    else if (sel === "tr") goTrainee()
+    else if (sel === "s") goStudent()
+  }
   return (
     <div dir="rtl" style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>
       <StatusBar/>
@@ -1207,7 +1677,7 @@ function RoleSelect({ goStudent, goTeacher, goParent }: { goStudent: () => void;
           <h1 style={{ margin: "12px 0 4px", fontSize: 20, fontWeight: 900, color: T.text, fontFamily: AR, textAlign: "center", lineHeight: 1.45 }}>
             هتستخدم Teac Teacher كـ إيه؟
           </h1>
-          <p style={{ margin: 0, fontSize: 13, color: T.muted, fontFamily: AR }}>اختر دورك لنخصص تجربتك</p>
+          <p style={{ margin: 0, fontSize: 13, color: T.muted, fontFamily: AR }}>اختر نوع حسابك (User Type)</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {roles.map((role) => {
@@ -1237,7 +1707,12 @@ function RoleSelect({ goStudent, goTeacher, goParent }: { goStudent: () => void;
         </div>
       </div>
       <div style={{ padding: "12px 20px 28px", flexShrink: 0 }}>
-        <Btn onClick={goSel} style={sel === "t" ? { background: T.gradTeacher, boxShadow: S.btnEm } : sel === "p" ? { background: "linear-gradient(135deg,#0891B2,#2F9E8A)", boxShadow: "0 4px 20px rgba(8,145,178,.35)" } : undefined}>
+        <Btn onClick={goSel} style={
+          sel === "t" ? { background: T.gradTeacher, boxShadow: S.btnEm }
+          : sel === "p" ? { background: "linear-gradient(135deg,#0891B2,#2F9E8A)", boxShadow: "0 4px 20px rgba(8,145,178,.35)" }
+          : sel === "tr" ? { background: T.gradAI, boxShadow: "0 4px 20px rgba(13,148,136,.35)" }
+          : undefined
+        }>
           {sel ? "متابعة" : "اختر دورك للمتابعة"}
         </Btn>
       </div>
@@ -1273,12 +1748,8 @@ function StudentHome({ go, hasTeacher }: { go: Go; hasTeacher: boolean }) {
         <StatusBar light/>
         <div style={{ position: "absolute", top: -30, left: -30, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }}/>
         <div style={{ position: "absolute", bottom: -50, right: -20, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
-          <div>
-            <p style={{ margin: "0 0 3px", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Cairo', sans-serif" }}>الاثنين، ١٨ أغسطس ٢٠٢٦</p>
-            <h1 style={{ margin: "0 0 3px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: "'Cairo', sans-serif" }}>أهلاً يا أحمد 👋</h1>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: "'Cairo', sans-serif" }}>جاهز تكمل تقدمك النهاردة؟</p>
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", marginBottom: 12 }}>
+          <Wordmark size={28} light/>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={() => go("notifs")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", backdropFilter: "blur(8px)" }}>
               <span style={{ width: 20, height: 20, display: "flex" }}>{Ic.bell}</span>
@@ -1287,6 +1758,11 @@ function StudentHome({ go, hasTeacher }: { go: Go; hasTeacher: boolean }) {
               <span style={{ fontSize: 14, fontWeight: 800, color: "white", fontFamily: "'Cairo', sans-serif" }}>أح</span>
             </div>
           </div>
+        </div>
+        <div style={{ position: "relative" }}>
+          <p style={{ margin: "0 0 3px", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Cairo', sans-serif" }}>الاثنين، ١٨ أغسطس ٢٠٢٦</p>
+          <h1 style={{ margin: "0 0 3px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: "'Cairo', sans-serif" }}>أهلاً يا أحمد 👋</h1>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: "'Cairo', sans-serif" }}>جاهز تكمل تقدمك النهاردة؟</p>
         </div>
         {/* Weekly progress */}
         <div style={{ marginTop: 14, background: "rgba(255,255,255,0.13)", borderRadius: 14, padding: "12px 14px", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.18)", position: "relative" }}>
@@ -1462,8 +1938,8 @@ function TeacherHome({ go, empty, verified }: { go: Go; empty?: boolean; verifie
             sub="أنشئ فصلك الأول أو حضّر محتوى بالذكاء الاصطناعي قبل ما ينضم الطلاب."
             actions={[
               { label: "أنشئ أول فصل", onClick: () => go("create-class") },
+              { label: "أنشئ كورس (مسجّل + Live)", onClick: () => go("t-courses"), primary: false },
               { label: "حضّر درس بالذكاء الاصطناعي", onClick: () => go("t-ai"), primary: false },
-              { label: "أنشئ امتحان", onClick: () => go("t-ai"), primary: false },
               { label: "ادعُ طلبتك", onClick: () => go("create-class"), primary: false },
             ]}
           />
@@ -1478,12 +1954,8 @@ function TeacherHome({ go, empty, verified }: { go: Go; empty?: boolean; verifie
       <div style={{ background: T.gradTeacher, padding: "44px 20px 20px", flexShrink: 0, position: "relative", overflow: "hidden" }}>
         <StatusBar light/>
         <div style={{ position: "absolute", top: -30, left: -30, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }}/>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
-          <div>
-            <p style={{ margin: "0 0 3px", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Cairo', sans-serif" }}>الاثنين، ١٨ أغسطس ٢٠٢٦</p>
-            <h1 style={{ margin: "0 0 3px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: "'Cairo', sans-serif" }}>أهلاً أ/ محمد 👋</h1>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: "'Cairo', sans-serif" }}>إليك ملخص طلبتك اليوم</p>
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", marginBottom: 12 }}>
+          <Wordmark size={28} light/>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => go("notifs")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white" }}>
               <span style={{ width: 20, height: 20, display: "flex" }}>{Ic.bell}</span>
@@ -1492,6 +1964,11 @@ function TeacherHome({ go, empty, verified }: { go: Go; empty?: boolean; verifie
               <span style={{ fontSize: 14, fontWeight: 800, color: "white", fontFamily: "'Cairo', sans-serif" }}>مح</span>
             </div>
           </div>
+        </div>
+        <div style={{ position: "relative" }}>
+          <p style={{ margin: "0 0 3px", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Cairo', sans-serif" }}>الاثنين، ١٨ أغسطس ٢٠٢٦</p>
+          <h1 style={{ margin: "0 0 3px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: "'Cairo', sans-serif" }}>أهلاً أ/ محمد 👋</h1>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: "'Cairo', sans-serif" }}>إليك ملخص طلبتك اليوم</p>
         </div>
         {/* Stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 16 }}>
@@ -1920,7 +2397,7 @@ function StudentSetup({ go }: { go: Go }) {
   }
   const toggle = (x: string) => setSubs((p) => p.includes(x) ? p.filter(i => i !== x) : [...p, x])
   const next = () => {
-    if (step === 0 && stage === "جامعة") { go("u-uni"); return }
+    if (step === 0 && stage === "جامعة") { go("u-country"); return }
     if (step < 4) setStep(step + 1)
     else go("s-start")
   }
@@ -1955,6 +2432,7 @@ function StudentSetup({ go }: { go: Go }) {
 }
 
 type UniDraft = {
+  countryId: CountryId
   universityId: string
   universityName: string
   universityType: string
@@ -1969,7 +2447,8 @@ type UniDraft = {
   customCourses: { id: string; name: string; code?: string }[]
 }
 
-const emptyUniDraft = (): UniDraft => ({
+const emptyUniDraft = (countryId: CountryId = DEFAULT_COUNTRY): UniDraft => ({
+  countryId,
   universityId: "", universityName: "", universityType: "",
   facultyId: "", facultyName: "", facultyKind: "other", facultyDesc: "",
   year: "", semester: "", selectedCourseIds: [], customCourses: [],
@@ -1985,13 +2464,15 @@ function facultyIcon(kind: FacultyKind) {
 }
 
 function UniversitySetupFlow({
-  screen, go, draft, setDraft, onComplete,
+  screen, go, draft, setDraft, onComplete, countryId, setCountryId,
 }: {
   screen: Screen
   go: Go
   draft: UniDraft
   setDraft: (d: UniDraft | ((p: UniDraft) => UniDraft)) => void
   onComplete: (p: UniProfile) => void
+  countryId: CountryId
+  setCountryId: (id: CountryId) => void
 }) {
   const [q, setQ] = useState("")
   const [customName, setCustomName] = useState("")
@@ -2000,18 +2481,42 @@ function UniversitySetupFlow({
   const faculty = uni?.faculties.find((f) => f.id === draft.facultyId)
   const catalogCourses = faculty ? resolveCourses(faculty, draft.department, draft.year, draft.semester) : []
   const allCourses = [...catalogCourses, ...draft.customCourses]
+  const country = countryById(countryId)
+
+  if (screen === "u-country") {
+    return (
+      <Page title="اختار دولتك" onBack={() => go("s-setup")} footer={
+        <Btn onClick={() => { setDraft(emptyUniDraft(countryId)); go("u-uni") }}>التالي · {country.name}</Btn>
+      }>
+        <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>مصر افتراضيًا — ونغطي جامعات ودول عربية أخرى بالتدريج.</p>
+        {ARAB_COUNTRIES.map((c) => (
+          <Card key={c.id} style={{ marginBottom: 8, border: countryId === c.id ? `1.5px solid ${T.brand}` : undefined }} onClick={() => setCountryId(c.id)}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: AR }}>
+              <div>
+                <div style={{ fontWeight: 900 }}>{c.flag} {c.name}</div>
+                <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>{c.nameEn} · {c.currency}</div>
+              </div>
+              {c.id === "eg" && <Chip filled>افتراضي</Chip>}
+            </div>
+          </Card>
+        ))}
+      </Page>
+    )
+  }
 
   if (screen === "u-uni") {
-    const list = UNI_CATALOG.filter((u) => !q || u.name.includes(q) || u.type.includes(q))
+    const list = unisByCountry(countryId).filter((u) => !q || u.name.includes(q) || u.type.includes(q))
     return (
-      <Page title="بتدرس في جامعة إيه؟" onBack={() => go("s-setup")} footer={
+      <Page title="بتدرس في جامعة إيه؟" onBack={() => go("u-country")} footer={
         <Btn onClick={() => draft.universityId && go("u-faculty")} style={!draft.universityId ? { opacity: 0.5 } : undefined}>التالي</Btn>
       }>
+        <Chip color={T.brand}>{country.flag} {country.name}</Chip>
+        <div style={{ height: 10 }}/>
         <Input placeholder="ابحث عن جامعتك" value={q} onChange={setQ}/>
         <div style={{ height: 12 }}/>
         {list.map((u) => (
           <Card key={u.id} style={{ marginBottom: 10, border: draft.universityId === u.id ? `1.5px solid ${T.brand}` : undefined }} onClick={() => setDraft((p) => ({
-            ...emptyUniDraft(), universityId: u.id, universityName: u.name, universityType: u.type,
+            ...emptyUniDraft(countryId), universityId: u.id, universityName: u.name, universityType: u.type, countryId,
           }))}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -2022,8 +2527,18 @@ function UniversitySetupFlow({
             </div>
           </Card>
         ))}
+        {!list.length && (
+          <EmptyBlock
+            title="لسه بنضيف جامعات دولتك"
+            sub="تقدر تختار جامعة أخرى يدويًا أو ترجع تغيّر الدولة."
+            actions={[{ label: "جامعة أخرى", onClick: () => setDraft({
+              ...emptyUniDraft(countryId), universityId: "other", universityName: "جامعة أخرى", universityType: "أخرى",
+              facultyId: "other-f", facultyName: "كلية أخرى", facultyKind: "other", facultyDesc: "مواد مخصصة",
+            }) }]}
+          />
+        )}
         <Card style={{ background: T.brandXLight }} onClick={() => setDraft((p) => ({
-          ...emptyUniDraft(), universityId: "other", universityName: "جامعة أخرى", universityType: "أخرى",
+          ...emptyUniDraft(countryId), universityId: "other", universityName: "جامعة أخرى", universityType: "أخرى",
           facultyId: "other-f", facultyName: "كلية أخرى", facultyKind: "other", facultyDesc: "مواد مخصصة",
         }))}>
           <div style={{ fontFamily: AR, fontWeight: 800 }}>مش لاقي جامعتي</div>
@@ -2158,6 +2673,7 @@ function UniversitySetupFlow({
         year: draft.year,
         semester: draft.semester,
         courses,
+        countryId,
       })
     }
     return (
@@ -2346,8 +2862,10 @@ function UniversityHome({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <Btn variant="secondary" onClick={() => go(hasTeacher ? "t-view" : "u-teachers")}>{hasTeacher ? "مدرسيني" : "ابحث عن مدرس"}</Btn>
-          <Btn variant="secondary" onClick={() => go("u-calendar")}>التقويم</Btn>
+          <Btn variant="secondary" onClick={() => go("courses")}>الكورسات</Btn>
         </div>
+        <div style={{ height: 8 }}/>
+        <Btn variant="ghost" onClick={() => go("u-calendar")}>التقويم الجامعي</Btn>
       </div>
       <NavBar items={navItems} active="home" highlight="ai" onSelect={onNav}/>
     </div>
@@ -2465,21 +2983,329 @@ function UniversityCourse({
   )
 }
 
-function TeacherSetup({ go }: { go: Go }) {
+/** Marketplace: browse / detail / learn / teacher manage */
+function CoursesHub({
+  go, countryId, setCountryId, enrolledIds, onOpen, myOnly, title, backTo, courses, enrollments,
+}: {
+  go: Go
+  countryId: CountryId
+  setCountryId: (id: CountryId) => void
+  enrolledIds: string[]
+  onOpen: (id: string) => void
+  myOnly?: boolean
+  title?: string
+  backTo?: Screen
+  courses?: MarketCourse[]
+  enrollments?: CourseEnrollment[]
+}) {
+  const [q, setQ] = useState("")
+  const [liveOnly, setLiveOnly] = useState(false)
+  const [minRating, setMinRating] = useState(0)
+  const [maxPrice, setMaxPrice] = useState<number | null>(null)
+  const [tag, setTag] = useState<string | undefined>()
+  const catalog = courses ?? DEMO_COURSES
+  const country = countryById(countryId)
+  const list = filterCourses(catalog, {
+    countryId: myOnly ? undefined : countryId,
+    q,
+    mineOnly: myOnly ? false : undefined,
+    liveOnly: myOnly ? false : liveOnly,
+    minRating: minRating || undefined,
+    maxPrice: maxPrice ?? undefined,
+    tag,
+  })
+  const enrolled = catalog.filter((c) => enrolledIds.includes(c.id))
+  const tags = ["CS", "طب", "هندسة", "أعمال", "Live"]
+  return (
+    <Page title={title ?? (myOnly ? "كورساتي" : "الكورسات")} onBack={() => go(backTo ?? (myOnly ? "courses" : "s-account"))} footer={
+      !myOnly ? <Btn variant="secondary" onClick={() => go("my-courses")}>كورساتي ({enrolledIds.length})</Btn> : undefined
+    }>
+      {!myOnly && (
+        <>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10 }} className="scrollbar-hide">
+            {ARAB_COUNTRIES.map((c) => (
+              <Chip key={c.id} filled={countryId === c.id} onClick={() => setCountryId(c.id)}>{c.flag} {c.name}</Chip>
+            ))}
+          </div>
+          <Input placeholder={`ابحث في كورسات ${country.name}…`} value={q} onChange={setQ}/>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0 12px" }}>
+            <Chip filled={liveOnly} color={T.ai} onClick={() => setLiveOnly((v) => !v)}>Live فقط</Chip>
+            <Chip filled={minRating >= 4.5} color={T.amber} onClick={() => setMinRating(minRating >= 4.5 ? 0 : 4.5)}>★ 4.5+</Chip>
+            <Chip filled={maxPrice === 600} color={T.teal} onClick={() => setMaxPrice(maxPrice === 600 ? null : 600)}>حتى 600</Chip>
+            {tags.map((t) => (
+              <Chip key={t} filled={tag === t} onClick={() => setTag(tag === t ? undefined : t)}>{t}</Chip>
+            ))}
+          </div>
+        </>
+      )}
+      {myOnly && enrolled.length === 0 && (
+        <EmptyBlock title="لسه ما اشتركتش في كورس" sub="تصفح كورسات دولتك وادفع من المحفظة." actions={[{ label: "تصفح الكورسات", onClick: () => go("courses") }]}/>
+      )}
+      {(myOnly ? enrolled : list).map((c) => {
+        const en = enrollments?.find((e) => e.courseId === c.id)
+        const pct = progressPct(en, c)
+        return (
+          <Card key={c.id} style={{ marginBottom: 10 }} onClick={() => { onOpen(c.id); go(enrolledIds.includes(c.id) ? "course-learn" : "course-detail") }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: AR, fontWeight: 900 }}>{c.title}</div>
+                <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{c.trainer} · {countryById(c.countryId).flag} {c.universityHint}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  {c.tags.slice(0, 3).map((t) => <Chip key={t} color={T.brand}>{t}</Chip>)}
+                </div>
+                {myOnly && en && (
+                  <div style={{ marginTop: 10 }}>
+                    <ProgressBar pct={pct}/>
+                    <div style={{ fontFamily: AR, fontSize: 11, color: T.muted, marginTop: 4 }}>{pct}% مكتمل</div>
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontFamily: LAT, fontWeight: 900, color: T.brand }}>{c.price}</div>
+                <div style={{ fontFamily: AR, fontSize: 11, color: T.muted }}>{countryById(c.countryId).currency}</div>
+                <div style={{ fontFamily: AR, fontSize: 11, color: T.amber, marginTop: 6 }}>★ {c.rating}</div>
+              </div>
+            </div>
+          </Card>
+        )
+      })}
+      {!myOnly && !list.length && <EmptyBlock title="مفيش كورسات بالمرشّحات دي" sub="شيل فلتر أو جرّب دولة تانية." actions={[{ label: "مصر", onClick: () => { setCountryId("eg"); setLiveOnly(false); setMinRating(0); setMaxPrice(null); setTag(undefined) } }]}/>}
+    </Page>
+  )
+}
+
+function CourseDetail({
+  go, course, enrolled, currency, isTrainee,
+}: {
+  go: Go
+  course: MarketCourse | null
+  enrolled: boolean
+  currency: string
+  isTrainee?: boolean
+}) {
+  if (!course) return (
+    <Page title="الكورس" onBack={() => go("courses")}>
+      <p style={{ fontFamily: AR }}>الكورس غير موجود.</p>
+    </Page>
+  )
+  const reviews = reviewsFor(course.id)
+  return (
+    <Page title="تفاصيل الكورس" onBack={() => go("courses")} footer={
+      <Btn onClick={() => {
+        if (enrolled) go("course-learn")
+        else go(isTrainee ? "tr-checkout" : "tr-checkout")
+      }}>{enrolled ? "متابعة التعلم" : `اشترك · ${course.price} ${currency}`}</Btn>
+    }>
+      <h1 style={{ fontFamily: AR, fontSize: 20, fontWeight: 900, marginTop: 0 }}>{course.title}</h1>
+      <p style={{ fontFamily: AR, color: T.sub }}>{course.trainer} · {course.universityHint}</p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <Chip filled>{course.level}</Chip>
+        <Chip color={T.amber}>★ {course.rating}</Chip>
+        <Chip color={T.teal}>{course.students} متدرّب</Chip>
+        <Chip color={T.ai}>{course.lives.length} Live</Chip>
+      </div>
+      <Card style={{ marginBottom: 10, background: T.brandXLight }}>
+        <div style={{ fontFamily: AR, fontWeight: 800 }}>مسجّل + جلسات Live اختيارية</div>
+        <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, margin: "6px 0 0", lineHeight: 1.7 }}>{course.desc}</p>
+      </Card>
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>المنهج ({course.lessons.length} دروس)</p>
+      {course.lessons.map((l, i) => (
+        <Card key={l.id} style={{ marginBottom: 8 }}>
+          <div style={{ fontFamily: AR, fontWeight: 700 }}>{i + 1}. {l.title}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{l.duration}</div>
+        </Card>
+      ))}
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>جلسات مباشرة قادمة</p>
+      {course.lives.map((l) => (
+        <Card key={l.id} style={{ marginBottom: 8, borderRight: `3px solid ${T.ai}` }}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>{l.title}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{l.when}</div>
+        </Card>
+      ))}
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>تقييمات المتدرّبين</p>
+      {reviews.map((r) => (
+        <Card key={r.id} style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: AR, fontWeight: 800 }}>{r.name}</span>
+            <span style={{ fontFamily: AR, color: T.amber }}>★ {r.stars}</span>
+          </div>
+          <p style={{ fontFamily: AR, fontSize: 13, color: T.sub, margin: "6px 0 0" }}>{r.text}</p>
+          <div style={{ fontFamily: AR, fontSize: 11, color: T.muted, marginTop: 4 }}>{r.when}</div>
+        </Card>
+      ))}
+    </Page>
+  )
+}
+
+function CourseLearn({
+  go, course, enrollment, onCompleteLesson, isTrainee, onSelectLive,
+}: {
+  go: Go
+  course: MarketCourse | null
+  enrollment?: CourseEnrollment
+  onCompleteLesson?: (lessonId: string) => void
+  isTrainee?: boolean
+  onSelectLive?: (liveId: string) => void
+}) {
+  const toast = useToast()
+  if (!course) return (
+    <Page title="التعلم" onBack={() => go("my-courses")}><p style={{ fontFamily: AR }}>الكورس غير موجود.</p></Page>
+  )
+  const doneSet = new Set(enrollment?.completedLessonIds ?? [])
+  const pct = progressPct(enrollment, course)
+  const certOk = certificateUnlocked(enrollment, course)
+  return (
+    <Page title={course.title} onBack={() => go("my-courses")} footer={
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {certOk && <Btn onClick={() => go("tr-certificate")}>عرض الشهادة</Btn>}
+        <Btn variant="secondary" onClick={() => go(isTrainee ? "tr-lives" : "lives")}>جلسات Live</Btn>
+      </div>
+    }>
+      <ProgressBar pct={pct}/>
+      <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>التقدم {pct}% {certOk ? "· جاهز للشهادة" : "· الشهادة من 80%"}</p>
+      {course.lessons.map((l, i) => (
+        <Card key={l.id} style={{ marginBottom: 8 }} onClick={() => {
+          onCompleteLesson?.(l.id)
+          toast(doneSet.has(l.id) ? `مراجعة: ${l.title}` : `تم إكمال: ${l.title}`)
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: AR }}>
+            <span style={{ fontWeight: 800 }}>{i + 1}. {l.title}</span>
+            <Chip color={doneSet.has(l.id) ? T.emerald : T.muted}>{doneSet.has(l.id) ? "مكتمل" : l.duration}</Chip>
+          </div>
+        </Card>
+      ))}
+      <p style={{ fontFamily: AR, fontWeight: 800, marginTop: 8 }}>Live القادمة</p>
+      {course.lives.map((l) => (
+        <Card key={l.id} style={{ marginBottom: 8 }} onClick={() => {
+          onSelectLive?.(l.id)
+          go(isTrainee ? "tr-live-wait" : "live-detail")
+        }}>
+          <div style={{ fontFamily: AR, fontWeight: 800 }}>{l.title}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted }}>{l.when}</div>
+          <Chip color={enrollment?.liveAttendance[l.id] === "attended" ? T.emerald : T.ai}>
+            {enrollment?.liveAttendance[l.id] === "attended" ? "حضرت" : enrollment?.liveAttendance[l.id] === "missed" ? "لم تحضر" : "قادمة"}
+          </Chip>
+        </Card>
+      ))}
+      <Btn variant="ghost" onClick={() => go("tr-progress")}>تفاصيل التقدّم</Btn>
+    </Page>
+  )
+}
+
+function TeacherCourses({
+  go, courses, onCreate, onOpen,
+}: {
+  go: Go
+  courses: MarketCourse[]
+  onCreate: () => void
+  onOpen: (id: string) => void
+}) {
+  const mine = courses.filter((c) => c.owner === "me")
+  return (
+    <Page title="كورساتي كمدرب" onBack={() => go("t-account")} footer={<Btn onClick={() => { onCreate(); go("t-course-create") }}>إنشاء كورس جديد</Btn>}>
+      <p style={{ fontFamily: AR, color: T.sub, marginTop: 0 }}>كورس مسجّل + جلسات Live اختيارية · جمهور جامعات عربية</p>
+      {!mine.length && (
+        <EmptyBlock title="ابدأ بأول كورس" sub="حدّد الدولة والجمهور، ارفع دروس، وجدول Live." actions={[{ label: "إنشاء كورس", onClick: () => { onCreate(); go("t-course-create") } }]}/>
+      )}
+      {mine.map((c) => (
+        <Card key={c.id} style={{ marginBottom: 10 }} onClick={() => { onOpen(c.id); go("t-course-edit") }}>
+          <div style={{ fontFamily: AR, fontWeight: 900 }}>{c.title || "بدون عنوان"}</div>
+          <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>
+            {countryById(c.countryId).flag} · {c.lessons.length} دروس · {c.lives.length} Live · {c.published ? "منشور" : "مسودة"}
+          </div>
+        </Card>
+      ))}
+    </Page>
+  )
+}
+
+function TeacherCourseEditor({
+  go, draft, setDraft, onSave, mode,
+}: {
+  go: Go
+  draft: MarketCourse
+  setDraft: (c: MarketCourse) => void
+  onSave: () => void
+  mode: "create" | "edit"
+}) {
+  const toast = useToast()
+  return (
+    <Page title={mode === "create" ? "إنشاء كورس" : "تعديل كورس"} onBack={() => go("t-courses")} footer={
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Btn onClick={() => { setDraft({ ...draft, published: true }); onSave(); toast("تم نشر الكورس"); go("t-courses") }}>نشر الكورس</Btn>
+        <Btn variant="secondary" onClick={() => { onSave(); toast("تم حفظ المسودة"); go("t-courses") }}>حفظ كمسودة</Btn>
+      </div>
+    }>
+      <Input placeholder="عنوان الكورس" value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })}/>
+      <div style={{ height: 8 }}/>
+      <Input placeholder="الوصف" value={draft.desc} onChange={(v) => setDraft({ ...draft, desc: v })}/>
+      <div style={{ height: 8 }}/>
+      <Input placeholder="الجامعة / الجمهور المستهدف" value={draft.universityHint ?? ""} onChange={(v) => setDraft({ ...draft, universityHint: v })}/>
+      <div style={{ height: 8 }}/>
+      <Input placeholder="السعر" value={String(draft.price)} onChange={(v) => setDraft({ ...draft, price: Number(v) || 0 })}/>
+      <p style={{ fontFamily: AR, fontWeight: 800, marginTop: 12 }}>الدولة</p>
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10 }} className="scrollbar-hide">
+        {ARAB_COUNTRIES.slice(0, 8).map((c) => (
+          <Chip key={c.id} filled={draft.countryId === c.id} onClick={() => setDraft({ ...draft, countryId: c.id })}>{c.flag} {c.name}</Chip>
+        ))}
+      </div>
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>دروس مسجّلة</p>
+      {draft.lessons.map((l, i) => (
+        <Card key={l.id} style={{ marginBottom: 8 }}>
+          <Input placeholder={`درس ${i + 1}`} value={l.title} onChange={(v) => setDraft({
+            ...draft,
+            lessons: draft.lessons.map((x) => x.id === l.id ? { ...x, title: v } : x),
+          })}/>
+        </Card>
+      ))}
+      <Btn variant="ghost" onClick={() => setDraft({
+        ...draft,
+        lessons: [...draft.lessons, { id: `l-${Date.now()}`, title: "درس جديد", duration: "20 د" }],
+      })}>إضافة درس</Btn>
+      <p style={{ fontFamily: AR, fontWeight: 800 }}>جلسات Live</p>
+      {draft.lives.map((l) => (
+        <Card key={l.id} style={{ marginBottom: 8 }}>
+          <Input placeholder="عنوان الجلسة" value={l.title} onChange={(v) => setDraft({
+            ...draft,
+            lives: draft.lives.map((x) => x.id === l.id ? { ...x, title: v } : x),
+          })}/>
+          <div style={{ height: 6 }}/>
+          <Input placeholder="الموعد" value={l.when} onChange={(v) => setDraft({
+            ...draft,
+            lives: draft.lives.map((x) => x.id === l.id ? { ...x, when: v } : x),
+          })}/>
+        </Card>
+      ))}
+      <Btn variant="ghost" onClick={() => setDraft({
+        ...draft,
+        lives: [...draft.lives, { id: `lv-${Date.now()}`, title: "جلسة Live", when: "يُحدد لاحقًا" }],
+      })}>إضافة جلسة Live</Btn>
+    </Page>
+  )
+}
+
+function TeacherSetup({ go, onOffer }: { go: Go; onOffer: (o: "lessons" | "courses" | "both") => void }) {
   const [step, setStep] = useState(0)
   const [name, setName] = useState("محمد حسن")
   const [bio, setBio] = useState("")
   const [mode, setMode] = useState("Both")
   const [teachType, setTeachType] = useState("مدارس")
+  const [offer, setOffer] = useState<"lessons" | "courses" | "both">("both")
+  const [countryId, setCountryId] = useState<CountryId>(DEFAULT_COUNTRY)
   return (
     <Page title="بيانات المدرس" onBack={() => step ? setStep(step-1) : go("role")} footer={<Btn onClick={() => {
       if (step === 0) setStep(1)
       else if (step === 1) setStep(2)
-      else if (teachType === "مدارس") go("t-id")
-      else go("t-uni-spec")
+      else if (step === 2) setStep(3)
+      else {
+        onOffer(offer)
+        if (offer === "courses") go("t-id")
+        else if (teachType === "مدارس") go("t-id")
+        else go("t-uni-spec")
+      }
     }}>التالي</Btn>}>
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[0,1,2].map((i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? T.emerald : T.border }}/>)}
+        {[0,1,2,3].map((i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? T.emerald : T.border }}/>)}
       </div>
       {step===0 && <>
         <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>بيانات المدرس</h1>
@@ -2494,22 +3320,42 @@ function TeacherSetup({ go }: { go: Go }) {
         </div>
       </>}
       {step===1 && <>
+        <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>بتقدّم إيه؟</h1>
+        {([
+          ["lessons", "حصص فردية / فصول", "مدارس أو جامعات"],
+          ["courses", "كورسات", "مسجّل + جلسات Live اختيارية"],
+          ["both", "الاتنين", "حصص وكورسات مع بعض"],
+        ] as const).map(([id, title, sub]) => (
+          <Card key={id} style={{ marginBottom: 8, border: offer === id ? `1.5px solid ${T.emerald}` : undefined }} onClick={() => setOffer(id)}>
+            <div style={{ fontFamily: AR, fontWeight: 900 }}>{title}</div>
+            <div style={{ fontFamily: AR, fontSize: 12, color: T.muted, marginTop: 4 }}>{sub}</div>
+          </Card>
+        ))}
+        <p style={{ fontFamily: AR, color: T.muted, margin: "12px 0 8px" }}>دولتك (لسوق الكورسات والجامعات)</p>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 8 }} className="scrollbar-hide">
+          {ARAB_COUNTRIES.slice(0, 8).map((c) => (
+            <Chip key={c.id} filled={countryId === c.id} onClick={() => setCountryId(c.id)}>{c.flag} {c.name}</Chip>
+          ))}
+        </div>
+      </>}
+      {step===2 && <>
         <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>نوع التدريس</h1>
-        {["مدارس","جامعات","الاثنين"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={teachType===x} onClick={() => setTeachType(x)}>{x}</Choice></div>)}
+        {offer !== "courses" && ["مدارس","جامعات","الاثنين"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={teachType===x} onClick={() => setTeachType(x)}>{x}</Choice></div>)}
+        {offer === "courses" && <p style={{ fontFamily: AR, color: T.sub }}>هتركّز على إنشاء كورسات مسجّلة مع جلسات مباشرة اختيارية لطلاب الجامعات والمدارس.</p>}
         <p style={{ fontFamily: AR, color: T.muted, margin: "12px 0 8px" }}>طريقة التدريس</p>
         {["أونلاين","حضوري","الاثنين"].map((x) => <div key={x} style={{ marginBottom: 8 }}><Choice on={mode===x} onClick={() => setMode(x)}>{x}</Choice></div>)}
       </>}
-      {step===2 && <>
+      {step===3 && <>
         <h1 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, fontFamily: AR }}>بيانات التدريس</h1>
-        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>{teachType === "جامعات" ? "مواد جامعية أولية" : "المواد"}</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{(teachType === "جامعات" ? ["Data Structures","Calculus","Circuits"] : ["رياضيات","فيزياء"]).map(x => <Chip key={x} filled color={T.emerald}>{x}</Chip>)}</div>
-        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>{teachType === "جامعات" ? "الكليات" : "المرحلة والصفوف"}</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{(teachType === "جامعات" ? ["هندسة","حاسبات"] : ["ثانوي","أولى","تانية"]).map(x => <Chip key={x} color={T.emerald}>{x}</Chip>)}</div>
+        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>{offer === "courses" ? "مجالات الكورسات" : teachType === "جامعات" ? "مواد جامعية أولية" : "المواد"}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{(offer === "courses" ? ["Data Structures","Calculus","Anatomy","Accounting"] : teachType === "جامعات" ? ["Data Structures","Calculus","Circuits"] : ["رياضيات","فيزياء"]).map(x => <Chip key={x} filled color={T.emerald}>{x}</Chip>)}</div>
+        <p style={{ fontFamily: AR, color: T.muted, margin: "0 0 8px" }}>{offer === "courses" ? "الجمهور المستهدف" : teachType === "جامعات" ? "الكليات" : "المرحلة والصفوف"}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>{(offer === "courses" ? ["جامعات","مدارس","عام"] : teachType === "جامعات" ? ["هندسة","حاسبات"] : ["ثانوي","أولى","تانية"]).map(x => <Chip key={x} color={T.emerald}>{x}</Chip>)}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
           <Input placeholder="سنوات الخبرة" value="8"/>
           <Input placeholder="المؤهل الدراسي" value="بكالوريوس تربية"/>
           <Input placeholder="الجامعة" value="جامعة عين شمس"/>
-          <Input placeholder="التخصص" value={teachType === "جامعات" ? "علوم حاسب" : "رياضيات"}/>
+          <Input placeholder="التخصص" value={teachType === "جامعات" || offer === "courses" ? "علوم حاسب" : "رياضيات"}/>
           <Input placeholder="نبذة عن المدرس" value={bio} onChange={setBio}/>
         </div>
         <p style={{ fontFamily: AR, fontSize: 13, color: T.muted }}>رفع شهادة المؤهل (اختياري)</p>
@@ -2721,6 +3567,7 @@ function UniversityExtras({
 
   const startEdit = (to: Screen) => {
     setDraft({
+      countryId: profile.countryId ?? DEFAULT_COUNTRY,
       universityId: profile.universityId,
       universityName: profile.universityName,
       universityType: profile.universityType,
@@ -3209,6 +4056,13 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
     { key: "tasks", label: "المهام", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.task}</span> },
     { key: "profile", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
   ]
+  const traineeNav = [
+    { key: "home", label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
+    { key: "learn", label: "الكورسات", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.book}</span> },
+    { key: "tasks", label: "كورساتي", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.classes}</span> },
+    { key: "ai", label: "Live", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.sparkle}</span> },
+    { key: "profile", label: "المزيد", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.more}</span> },
+  ]
   const teacherNav = [
     { key: "home",     label: "الرئيسية", icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.home}</span> },
     { key: "classes",  label: "الفصول",   icon: <span style={{ width: 22, height: 22, display: "flex" }}>{Ic.classes}</span> },
@@ -3223,6 +4077,12 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
       if (k === "ai") go("ai-chat")
       if (k === "tasks") go(access.isUniversity ? "u-calendar" : "tasks")
       if (k === "profile") go("s-account")
+    } else if (role === "tr") {
+      if (k === "home") go("tr-home")
+      if (k === "learn") go("courses")
+      if (k === "ai") go("tr-lives")
+      if (k === "tasks") go("my-courses")
+      if (k === "profile") go("s-account")
     } else if (role === "t") {
       if (k === "home") go("t-home")
       if (k === "classes") go("class")
@@ -3231,7 +4091,7 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
       if (k === "profile") go("t-account")
     } else parentOnNav(go, k)
   }
-  const nav = role === "t" ? teacherNav : role === "p" ? parentNavItems() : studentNav
+  const nav = role === "t" ? teacherNav : role === "p" ? parentNavItems() : role === "tr" ? traineeNav : studentNav
 
   type Row = { id: string; group: string; g: number; i: number; title: string; sub?: string; icon: ReactNode; to: Screen; value?: string; badge?: string }
   const rows: Row[] = []
@@ -3241,6 +4101,7 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
     if (access.isUniversity) {
       add({ id: "uni", group: "دراستي", g: 1, i: 1, title: "الجامعة والكلية", sub: access.uniLabel, icon: Ic.classes, to: "u-edit" }, true)
       add({ id: "courses", group: "دراستي", g: 1, i: 2, title: "موادي", icon: Ic.book, to: "u-home" }, true)
+      add({ id: "mkt-courses", group: "دراستي", g: 1, i: 7, title: "سوق الكورسات", sub: "مسجّل + Live", icon: Ic.classes, to: "courses" }, FEATURES.courses)
       add({ id: "progress", group: "دراستي", g: 1, i: 3, title: "تقدمي", icon: Ic.task, to: "u-home" }, true)
       add({ id: "files", group: "دراستي", g: 1, i: 4, title: "ملفاتي", icon: Ic.attach, to: "u-course" }, true)
       add({ id: "ai", group: "دراستي", g: 1, i: 5, title: "المعلم الذكي", icon: Ic.robot, to: "ai-chat" }, true)
@@ -3267,6 +4128,7 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
       add({ id: "book", group: "التعلم", g: 1, i: 5, title: "حجوزاتي", icon: Ic.task, to: "bookings" }, access.book)
       add({ id: "chat", group: "التعلم", g: 1, i: 6, title: "المحادثات", icon: Ic.send, to: "chats" }, access.chat)
       add({ id: "pkgs", group: "التعلم", g: 1, i: 7, title: "باقاتي", icon: Ic.classes, to: "s-pkgs" }, access.hasPackage)
+      add({ id: "mkt-courses", group: "التعلم", g: 1, i: 8, title: "الكورسات", sub: "مسجّل + Live", icon: Ic.book, to: "courses" }, FEATURES.courses)
       add({ id: "wallet", group: "المدفوعات", g: 2, i: 1, title: "المحفظة", value: "180 ج.م", icon: Ic.wallet, to: "s-wallet" }, access.wallet)
       add({ id: "tx", group: "المدفوعات", g: 2, i: 2, title: "المعاملات", icon: Ic.task, to: "tx" }, access.pay)
       add({ id: "pm", group: "المدفوعات", g: 2, i: 3, title: "طرق الدفع", icon: Ic.wallet, to: "pay-methods" }, access.pay)
@@ -3282,6 +4144,22 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
     }
   }
 
+  if (role === "tr") {
+    add({ id: "browse", group: "التدريب", g: 1, i: 1, title: "سوق الكورسات", sub: "فلاتر ودول عربية", icon: Ic.book, to: "courses" }, true)
+    add({ id: "mine", group: "التدريب", g: 1, i: 2, title: "كورساتي", icon: Ic.classes, to: "my-courses" }, true)
+    add({ id: "progress", group: "التدريب", g: 1, i: 3, title: "تقدّمي", icon: Ic.task, to: "tr-progress" }, true)
+    add({ id: "certs", group: "التدريب", g: 1, i: 4, title: "شهاداتي", icon: Ic.sparkle, to: "tr-certificate" }, true)
+    add({ id: "lives", group: "التدريب", g: 1, i: 5, title: "جلسات Live", icon: Ic.sparkle, to: "tr-lives" }, true)
+    add({ id: "ai", group: "التدريب", g: 1, i: 6, title: "المعلم الذكي", icon: Ic.robot, to: "ai-chat" }, true)
+    add({ id: "wallet", group: "المدفوعات", g: 2, i: 1, title: "المحفظة", icon: Ic.wallet, to: "s-wallet" }, access.wallet)
+    add({ id: "tx", group: "المدفوعات", g: 2, i: 2, title: "المعاملات", icon: Ic.task, to: "tx" }, access.pay)
+    add({ id: "sub", group: "المدفوعات", g: 2, i: 3, title: "اشتراكي", icon: Ic.sparkle, to: "s-plans" }, true)
+    add({ id: "profile", group: "الحساب", g: 3, i: 1, title: "الملف الشخصي", icon: Ic.user, to: "edit-profile" }, true)
+    add({ id: "notifs", group: "الحساب", g: 3, i: 2, title: "الإشعارات", icon: Ic.bell, to: "notifs" }, true)
+    add({ id: "sec", group: "الحساب", g: 3, i: 3, title: "الأمان", icon: Ic.lock, to: "security" }, true)
+    add({ id: "help", group: "المساعدة", g: 4, i: 1, title: "المساعدة", icon: Ic.sparkle, to: "help-center" }, true)
+  }
+
   if (role === "t") {
     const teachG = access.withdraw && access.hasStudents ? 2 : 1
     const moneyG = access.withdraw && access.hasStudents ? 1 : 2
@@ -3295,6 +4173,7 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
     add({ id: "mkt", group: "التدريس", g: teachG, i: 8, title: "ملفي في سوق المدرسين", icon: Ic.user, to: "t-view" }, access.marketplace)
     add({ id: "live", group: "التدريس", g: teachG, i: 9, title: "البث المباشر", icon: Ic.sparkle, to: "lives" }, access.live)
     add({ id: "pkgs", group: "التدريس", g: teachG, i: 10, title: "باقاتي", icon: Ic.classes, to: "pkg-sales" }, access.sellPackages)
+    add({ id: "t-courses", group: "التدريس", g: teachG, i: 11, title: "كورساتي", sub: "إنشاء وإدارة", icon: Ic.book, to: "t-courses" }, access.teachCourses || FEATURES.courses)
     add({ id: "earn", group: "المالية", g: moneyG, i: 1, title: "أرباحي", icon: Ic.wallet, to: "t-finance" }, access.withdraw)
     add({ id: "tx", group: "المالية", g: moneyG, i: 2, title: "المعاملات", icon: Ic.task, to: "t-tx" }, access.withdraw)
     add({ id: "wo", group: "المالية", g: moneyG, i: 3, title: "طرق السحب", icon: Ic.wallet, to: "payout-add" }, access.withdraw)
@@ -3346,6 +4225,11 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
     if (access.hasPackage) quick.push({ l: "باقاتي", s: "1", to: "s-pkgs", p: 3 })
     if (access.sub) quick.push({ l: "اشتراكي", s: "Plus", to: "s-plans", p: 4 })
     else quick.push({ l: "المعلم الذكي", s: "AI", to: "ai-chat", p: 4 })
+  } else if (role === "tr") {
+    quick.push({ l: "الكورسات", s: countryById(DEFAULT_COUNTRY).name, to: "courses", p: 1 })
+    quick.push({ l: "تقدّمي", s: "تتبع", to: "tr-progress", p: 2 })
+    quick.push({ l: "Live", s: "جلسات", to: "tr-lives", p: 3 })
+    quick.push({ l: "المحفظة", s: "رصيد", to: "s-wallet", p: 4 })
   } else if (role === "t") {
     if (access.withdraw) {
       quick.push({ l: "متاح للسحب", s: "3,850", to: "t-finance", p: 1 })
@@ -3381,7 +4265,7 @@ function Account({ go, access }: { go: Go; access: MoreAccess }) {
       <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", padding: "56px 20px 28px", minHeight: 0 }}>
         <Card style={{ marginBottom: 16, padding: 16 }} onClick={() => go("edit-profile")}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <Avatar name={access.name} size={56} bg={role === "t" ? T.emerald : T.brand}/>
+            <Avatar name={access.name} size={56} bg={role === "t" ? T.emerald : role === "tr" ? T.ai : T.brand}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: AR, fontWeight: 900, fontSize: 18, display: "flex", gap: 6, alignItems: "center" }}>
                 {access.name} {role === "t" && access.verified && <VerifiedBadge small/>}
@@ -3912,14 +4796,15 @@ function ParentHome({ go, kids, kidId, setKidId, hasKids }: {
     <ParentShell go={go} active="home">
       <div style={{ background: T.gradBrand, padding: "44px 20px 18px", flexShrink: 0 }}>
         <StatusBar light/>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: AR }}>أهلاً يا أحمد 👋</h1>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: AR }}>ده ملخص متابعة أولادك النهاردة</p>
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <Wordmark size={28} light/>
           <button onClick={() => go("p-notifs")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 12, width: 38, height: 38, color: "white", cursor: "pointer" }}>
             <span style={{ width: 20, height: 20, display: "flex" }}>{Ic.bell}</span>
           </button>
+        </div>
+        <div>
+          <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 900, color: "white", fontFamily: AR }}>أهلاً يا أحمد 👋</h1>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)", fontFamily: AR }}>ده ملخص متابعة أولادك النهاردة</p>
         </div>
         {hasKids && <div style={{ marginTop: 14 }}><ChildSwitcher kids={kids} id={kidId} onPick={setKidId} onAdd={() => go("p-add-child")}/></div>}
       </div>
@@ -4634,7 +5519,7 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "lives") return (
-    <Page title="البثوث" onBack={() => go(ctx.role === "t" ? "t-account" : ctx.uni ? "u-home" : "s-home")}>
+    <Page title="البثوث" onBack={() => go(ctx.role === "t" ? "t-account" : ctx.role === "tr" ? "tr-lives" : ctx.uni ? "u-home" : "s-home")}>
       <Card style={{ marginBottom: 10 }} onClick={() => go("live-detail")}>
         <Chip filled>LIVE قريباً</Chip>
         <div style={{ fontFamily: AR, fontWeight: 800, marginTop: 8 }}>
@@ -4681,7 +5566,7 @@ function ExtraFlow({ screen, go, ctx }: {
     </Page>
   )
   if (screen === "live") return (
-    <Page title="البث المباشر" onBack={() => go("live-end")} pad={false}>
+    <Page title="البث المباشر" onBack={() => go(ctx.role === "tr" ? "tr-live-end" : "live-end")} pad={false}>
       <div style={{ height: 220, background: T.gradBrand, color: "white", padding: 16, display: "flex", justifyContent: "space-between" }}>
         <Chip filled>LIVE</Chip>
         <span style={{ fontFamily: AR }}>43 مشاهد · مراجعة ليلة الامتحان</span>
@@ -4706,12 +5591,12 @@ function ExtraFlow({ screen, go, ctx }: {
         </Card>
         <Card><div style={{ fontFamily: AR }}>الحضور: مسجّل 50 · انضم 43 · غاب 7</div></Card>
         <div style={{ height: 8 }}/>
-        <Btn onClick={() => go("live-end")}>إنهاء البث</Btn>
+        <Btn onClick={() => go(ctx.role === "tr" ? "tr-live-end" : "live-end")}>إنهاء البث</Btn>
       </div>
     </Page>
   )
   if (screen === "live-end") return (
-    <Page title={ctx.role==="t"?"ملخص البث":"انتهى البث"} onBack={() => go(ctx.role==="t"?"t-finance":"s-home")}>
+    <Page title={ctx.role==="t"?"ملخص البث":"انتهى البث"} onBack={() => go(ctx.role==="t"?"t-finance": ctx.role === "tr" ? "tr-lives" : "s-home")}>
       {ctx.role==="t" ? (
         <>
           <Card style={{ marginBottom: 10, background: T.emeraldLt }}>
@@ -5829,12 +6714,50 @@ export default function App() {
   const [kids] = useState<Kid[]>(DEMO_KIDS)
   const [kidId, setKidId] = useState("ahmed")
   const [plan, setPlan] = useState<PlanId>("free")
-  const [walletBalance, setWalletBalance] = useState(450)
+  const [walletBalance, setWalletBalance] = useState(1800)
   const [hasPackage, setHasPackage] = useState(false)
   const [hasGuardian, setHasGuardian] = useState(false)
   const [verified, setVerified] = useState(false)
   const [uniProfile, setUniProfile] = useState<UniProfile | null>(null)
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null)
+  const [countryId, setCountryId] = useState<CountryId>(DEFAULT_COUNTRY)
+  const [teachOffer, setTeachOffer] = useState<"lessons" | "courses" | "both">("both")
+  const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([])
+  const [activeLiveId, setActiveLiveId] = useState<string | null>(null)
+  const [marketCourses, setMarketCourses] = useState<MarketCourse[]>(DEMO_COURSES)
+  const [activeMarketCourseId, setActiveMarketCourseId] = useState<string | null>(null)
+  const [courseDraft, setCourseDraft] = useState<MarketCourse>(() => emptyCourseDraft(DEFAULT_COUNTRY))
+  const enrolledCourseIds = enrollments.map((e) => e.courseId)
+  const activeEnrollment = enrollments.find((e) => e.courseId === activeMarketCourseId)
+  const openMarketCourse = (id: string) => setActiveMarketCourseId(id)
+  const payAndEnroll = (): boolean => {
+    const course = marketCourses.find((c) => c.id === activeMarketCourseId)
+      ?? DEMO_COURSES.find((c) => c.id === activeMarketCourseId)
+    if (!course) return false
+    if (enrollments.some((e) => e.courseId === course.id)) return true
+    if (!canAfford(walletBalance, course.price)) return false
+    setWalletBalance((b) => b - course.price)
+    setEnrollments((prev) => [...prev, makeEnrollment(course)])
+    return true
+  }
+  const completeActiveLesson = (lessonId: string) => {
+    if (!activeMarketCourseId) return
+    setEnrollments((prev) => prev.map((e) =>
+      e.courseId === activeMarketCourseId ? completeLesson(e, lessonId) : e,
+    ))
+  }
+  const updateActiveLive = (status: "attended" | "missed") => {
+    if (!activeMarketCourseId || !activeLiveId) return
+    setEnrollments((prev) => prev.map((e) =>
+      e.courseId === activeMarketCourseId ? setLiveStatus(e, activeLiveId, status) : e,
+    ))
+  }
+  const rateActiveLive = (stars: number, note: string) => {
+    if (!activeMarketCourseId || !activeLiveId) return
+    setEnrollments((prev) => prev.map((e) =>
+      e.courseId === activeMarketCourseId ? rateLive(e, activeLiveId, stars, note) : e,
+    ))
+  }
   const [dueOrders, setDueOrders] = useState<DueOrder[]>([
     { id: "#8246", time: "18:00", value: "180", fee: "حسب السياسة", vat: "—", due: "153", sub: "رياضيات · أحمد علي" },
     { id: "#8241", time: "16:30", value: "180", fee: "حسب السياسة", vat: "—", due: "153", sub: "رياضيات · سارة محمود" },
@@ -5853,7 +6776,7 @@ export default function App() {
     },
   ])
   const go: Go = (s) => setScreen(s)
-  const [uniDraft, setUniDraft] = useState<UniDraft>(emptyUniDraft())
+  const [uniDraft, setUniDraft] = useState<UniDraft>(() => emptyUniDraft(DEFAULT_COUNTRY))
   const moreAccess = resolveMoreAccess({
     role: role ?? "s",
     verified,
@@ -5866,6 +6789,7 @@ export default function App() {
     kids,
     kidId,
     uni: uniProfile,
+    teachOffer,
   })
   const requestSettlement = () => {
     if (!dueOrders.length) return
@@ -5883,10 +6807,20 @@ export default function App() {
       ? { ...s, status: "done" as const, doneAt: "تم التحويل اليوم" }
       : s))
   }
-  const uniSetupScreens: Screen[] = ["u-uni", "u-faculty", "u-dept", "u-year", "u-sem", "u-courses", "u-course-add"]
+  const uniSetupScreens: Screen[] = ["u-country", "u-uni", "u-faculty", "u-dept", "u-year", "u-sem", "u-courses", "u-course-add"]
   const uniExtraScreens: Screen[] = ["u-exam", "u-calendar", "u-edit", "u-search"]
   const activeCourseName = uniProfile?.courses.find((c) => c.id === activeCourseId)?.name
     ?? uniProfile?.courses[0]?.name
+  const activeMarketCourse = marketCourses.find((c) => c.id === activeMarketCourseId)
+    ?? DEMO_COURSES.find((c) => c.id === activeMarketCourseId)
+    ?? null
+  const saveCourseDraft = () => {
+    setMarketCourses((prev) => {
+      const exists = prev.some((c) => c.id === courseDraft.id)
+      if (exists) return prev.map((c) => c.id === courseDraft.id ? courseDraft : c)
+      return [{ ...courseDraft, owner: "me" as const }, ...prev]
+    })
+  }
 
   return (
     <IPhoneFrame>
@@ -5899,15 +6833,74 @@ export default function App() {
         {screen === "onboard" && <Onboard go={() => go("login")} goLogin={() => go("login")}/>}
         {screen === "login" && <Login go={() => go("role")} onForgot={() => go("forgot")}/>}
         {screen === "forgot" && <Forgot go={go}/>}
-        {screen === "role" && <RoleSelect goStudent={() => { setRole("s"); go("s-setup") }} goTeacher={() => { setRole("t"); go("t-setup") }} goParent={() => { setRole("p"); go("p-setup") }}/>}
+        {screen === "role" && <RoleSelect
+          goStudent={() => { setRole("s"); go("s-setup") }}
+          goTeacher={() => { setRole("t"); go("t-setup") }}
+          goParent={() => { setRole("p"); go("p-setup") }}
+          goTrainee={() => { setRole("tr"); go("tr-setup") }}
+        />}
         {screen === "s-setup" && <StudentSetup go={go}/>}
-        {screen === "t-setup" && <TeacherSetup go={go}/>}
+        {screen === "t-setup" && <TeacherSetup go={go} onOffer={setTeachOffer}/>}
+        {screen === "tr-setup" && <TraineeSetup go={go} countryId={countryId} setCountryId={setCountryId}/>}
+        {screen === "tr-home" && (
+          <TraineeHome
+            go={go}
+            countryId={countryId}
+            enrollments={enrollments}
+            courses={marketCourses}
+            walletBalance={walletBalance}
+            onOpenCourse={openMarketCourse}
+          />
+        )}
+        {screen === "tr-checkout" && (
+          <TraineeCheckout
+            go={go}
+            course={activeMarketCourse}
+            currency={countryById(activeMarketCourse?.countryId ?? countryId).currency}
+            balance={walletBalance}
+            onPay={payAndEnroll}
+          />
+        )}
+        {screen === "tr-progress" && (
+          <TraineeProgress go={go} enrollments={enrollments} courses={marketCourses} onOpenCourse={openMarketCourse}/>
+        )}
+        {screen === "tr-certificate" && (
+          <TraineeCertificates go={go} enrollments={enrollments} courses={marketCourses} onOpenCourse={openMarketCourse}/>
+        )}
+        {screen === "tr-lives" && (
+          <TraineeLives
+            go={go}
+            enrollments={enrollments}
+            courses={marketCourses}
+            onOpenCourse={openMarketCourse}
+            onSelectLive={(courseId, liveId) => { setActiveMarketCourseId(courseId); setActiveLiveId(liveId) }}
+          />
+        )}
+        {screen === "tr-live-wait" && (
+          <TraineeLiveWait
+            go={go}
+            course={activeMarketCourse}
+            liveId={activeLiveId}
+            onJoin={() => updateActiveLive("attended")}
+            onMiss={() => updateActiveLive("missed")}
+          />
+        )}
+        {screen === "tr-live-end" && (
+          <TraineeLiveEnd
+            go={go}
+            course={activeMarketCourse}
+            liveId={activeLiveId}
+            onRate={rateActiveLive}
+          />
+        )}
         {uniSetupScreens.includes(screen) && (
           <UniversitySetupFlow
             screen={screen}
             go={go}
             draft={uniDraft}
             setDraft={setUniDraft}
+            countryId={countryId}
+            setCountryId={setCountryId}
             onComplete={(p) => {
               setUniProfile(p)
               setHasGuardian(false)
@@ -5956,6 +6949,69 @@ export default function App() {
           />
         )}
         {screen === "u-teachers" && <FindTeacher go={go} uni={uniProfile}/>}
+        {screen === "courses" && (
+          <CoursesHub
+            go={go}
+            countryId={countryId}
+            setCountryId={setCountryId}
+            enrolledIds={enrolledCourseIds}
+            onOpen={openMarketCourse}
+            backTo={role === "tr" ? "tr-home" : "s-account"}
+            courses={marketCourses}
+            enrollments={enrollments}
+          />
+        )}
+        {screen === "my-courses" && (
+          <CoursesHub
+            go={go}
+            countryId={countryId}
+            setCountryId={setCountryId}
+            enrolledIds={enrolledCourseIds}
+            onOpen={openMarketCourse}
+            myOnly
+            title="كورساتي"
+            backTo={role === "tr" ? "tr-home" : "courses"}
+            courses={marketCourses}
+            enrollments={enrollments}
+          />
+        )}
+        {screen === "course-detail" && (
+          <CourseDetail
+            go={go}
+            course={activeMarketCourse}
+            enrolled={!!activeMarketCourse && enrolledCourseIds.includes(activeMarketCourse.id)}
+            currency={countryById(activeMarketCourse?.countryId ?? countryId).currency}
+            isTrainee={role === "tr"}
+          />
+        )}
+        {screen === "course-learn" && (
+          <CourseLearn
+            go={go}
+            course={activeMarketCourse}
+            enrollment={activeEnrollment}
+            onCompleteLesson={completeActiveLesson}
+            isTrainee={role === "tr"}
+            onSelectLive={setActiveLiveId}
+          />
+        )}
+        {screen === "t-courses" && (
+          <TeacherCourses
+            go={go}
+            courses={marketCourses}
+            onCreate={() => setCourseDraft(emptyCourseDraft(countryId))}
+            onOpen={(id) => {
+              setActiveMarketCourseId(id)
+              const found = marketCourses.find((c) => c.id === id)
+              if (found) setCourseDraft(found)
+            }}
+          />
+        )}
+        {screen === "t-course-create" && (
+          <TeacherCourseEditor go={go} draft={courseDraft} setDraft={setCourseDraft} onSave={saveCourseDraft} mode="create"/>
+        )}
+        {screen === "t-course-edit" && (
+          <TeacherCourseEditor go={go} draft={courseDraft} setDraft={setCourseDraft} onSave={saveCourseDraft} mode="edit"/>
+        )}
         {screen === "t-home" && <TeacherHome go={go} empty={teacherEmpty} verified={verified}/>}
         {screen === "create-class" && <CreateClass go={go} onCreated={() => setTeacherEmpty(false)}/>}
         {screen === "join" && <JoinClass go={go} onJoin={() => setHasTeacher(true)}/>}
@@ -5985,7 +7041,7 @@ export default function App() {
         {screen === "quiz-ok" && <QuizOk go={go}/>}
         {screen === "ai-chat" && (
           <AIChat
-            onBack={() => go(uniProfile ? "u-home" : "s-home")}
+            onBack={() => go(role === "tr" ? "tr-home" : uniProfile ? "u-home" : "s-home")}
             onLimit={() => go("ai-limit")}
             uni={uniProfile}
             courseName={activeCourseName}
@@ -5994,9 +7050,9 @@ export default function App() {
         {screen === "t-ai" && <TeacherAI go={go}/>}
         {screen === "tasks" && <Tasks go={go}/>}
         {screen === "hw" && <Homework go={go}/>}
-        {screen === "s-account" && <Account go={go} access={{ ...moreAccess, role: "s" }}/>}
+        {screen === "s-account" && <Account go={go} access={{ ...moreAccess, role: role === "tr" ? "tr" : "s" }}/>}
         {screen === "t-account" && <Account go={go} access={{ ...moreAccess, role: "t" }}/>}
-        {screen === "notifs" && <Notifs go={go} back={role === "t" ? "t-home" : role === "p" ? "p-home" : uniProfile ? "u-home" : "s-home"}/>}
+        {screen === "notifs" && <Notifs go={go} back={role === "t" ? "t-home" : role === "p" ? "p-home" : role === "tr" ? "tr-home" : uniProfile ? "u-home" : "s-home"}/>}
         {screen === "class-code" && <ClassCode go={go}/>}
         {screen === "class" && <ClassDetails go={go}/>}
         {screen === "class-students" && <ClassStudents go={go}/>}

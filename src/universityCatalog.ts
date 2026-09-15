@@ -1,5 +1,7 @@
 /** Backend-shaped academic catalog (prototype demo data). UI should not hardcode hierarchy. */
 
+import type { CountryId } from "./coursesCatalog"
+
 export type FacultyKind = "medicine" | "engineering" | "cs" | "commerce" | "law" | "pharmacy" | "other"
 
 export type UniCourse = {
@@ -22,12 +24,14 @@ export type UniProfile = {
   year: string
   semester: string
   courses: UniCourse[]
+  countryId?: CountryId
 }
 
 export type UniCatalog = {
   id: string
   name: string
   type: "حكومية" | "خاصة" | "أهلية" | "دولية" | "أخرى"
+  countryId: CountryId
   faculties: {
     id: string
     name: string
@@ -45,6 +49,7 @@ export const UNI_CATALOG: UniCatalog[] = [
     id: "cu",
     name: "جامعة القاهرة",
     type: "حكومية",
+    countryId: "eg",
     faculties: [
       {
         id: "eng",
@@ -162,6 +167,7 @@ export const UNI_CATALOG: UniCatalog[] = [
     id: "asu",
     name: "جامعة عين شمس",
     type: "حكومية",
+    countryId: "eg",
     faculties: [
       {
         id: "eng-asu",
@@ -200,6 +206,7 @@ export const UNI_CATALOG: UniCatalog[] = [
     id: "guc",
     name: "الجامعة الألمانية بالقاهرة",
     type: "خاصة",
+    countryId: "eg",
     faculties: [
       {
         id: "guc-eng",
@@ -238,6 +245,7 @@ export const UNI_CATALOG: UniCatalog[] = [
     id: "auc",
     name: "الجامعة الأمريكية بالقاهرة",
     type: "خاصة",
+    countryId: "eg",
     faculties: [
       {
         id: "auc-bus",
@@ -257,7 +265,118 @@ export const UNI_CATALOG: UniCatalog[] = [
       },
     ],
   },
+  {
+    id: "ksu",
+    name: "جامعة الملك سعود",
+    type: "حكومية",
+    countryId: "sa",
+    faculties: [
+      {
+        id: "ksu-cs",
+        name: "كلية علوم الحاسب والمعلومات",
+        kind: "cs",
+        desc: "برمجة، نظم، وذكاء اصطناعي",
+        departments: ["علوم حاسب", "نظم معلومات", "هندسة برمجيات", "أخرى"],
+        years: ["المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع"],
+        semesters: ["الفصل الأول", "الفصل الثاني"],
+        coursesByKey: {
+          "علوم حاسب|المستوى الثاني|الفصل الأول": [
+            { id: "ds", name: "هياكل البيانات", code: "CSC212" },
+            { id: "oop", name: "برمجة كائنية", code: "CSC113" },
+            { id: "disc", name: "رياضيات متقطعة", code: "MATH251" },
+          ],
+        },
+      },
+      {
+        id: "ksu-med",
+        name: "كلية الطب",
+        kind: "medicine",
+        desc: "المواد الطبية الأساسية",
+        years: ["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "السنة الخامسة", "السنة السادسة"],
+        semesters: ["الفصل الأول", "الفصل الثاني"],
+        coursesByKey: {
+          "|السنة الأولى|الفصل الأول": [
+            { id: "anat", name: "التشريح", code: "ANAT101" },
+            { id: "physio", name: "وظائف الأعضاء", code: "PHYS101" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: "kau",
+    name: "جامعة الملك عبدالعزيز",
+    type: "حكومية",
+    countryId: "sa",
+    faculties: [
+      {
+        id: "kau-eng",
+        name: "كلية الهندسة",
+        kind: "engineering",
+        desc: "برامج هندسية متعددة",
+        departments: ["كهرباء", "حاسبات", "مدني", "أخرى"],
+        years: ["المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع"],
+        semesters: ["الفصل الأول", "الفصل الثاني"],
+        coursesByKey: {
+          "حاسبات|المستوى الثاني|الفصل الأول": [
+            { id: "circ", name: "دوائر كهربائية", code: "EE201" },
+            { id: "prog", name: "برمجة ٢", code: "CPCS203" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: "uaeu",
+    name: "جامعة الإمارات",
+    type: "حكومية",
+    countryId: "ae",
+    faculties: [
+      {
+        id: "uaeu-it",
+        name: "كلية تقنية المعلومات",
+        kind: "cs",
+        desc: "علوم حاسب ونظم معلومات",
+        departments: ["CS", "IS", "أخرى"],
+        years: ["Year 1", "Year 2", "Year 3", "Year 4"],
+        semesters: ["Fall", "Spring"],
+        coursesByKey: {
+          "CS|Year 2|Fall": [
+            { id: "ds", name: "Data Structures", code: "CSBP219" },
+            { id: "db", name: "Databases", code: "ITBP301" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: "ju",
+    name: "الجامعة الأردنية",
+    type: "حكومية",
+    countryId: "jo",
+    faculties: [
+      {
+        id: "ju-it",
+        name: "كلية الملك عبدالله لتكنولوجيا المعلومات",
+        kind: "cs",
+        desc: "علوم حاسب وهندسة برمجيات",
+        departments: ["علوم حاسب", "هندسة برمجيات", "أخرى"],
+        years: ["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة"],
+        semesters: ["الفصل الأول", "الفصل الثاني"],
+        coursesByKey: {
+          "علوم حاسب|السنة الثانية|الفصل الأول": [
+            { id: "ds", name: "هياكل بيانات", code: "1901231" },
+            { id: "algo", name: "خوارزميات", code: "1901233" },
+          ],
+        },
+      },
+    ],
+  },
 ]
+
+export function unisByCountry(countryId: CountryId) {
+  return UNI_CATALOG.filter((u) => u.countryId === countryId)
+}
 
 export function courseKey(dept: string | undefined, year: string, sem: string) {
   return `${dept ?? ""}|${year}|${sem}`
